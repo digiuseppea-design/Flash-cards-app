@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Flashcard — Traduzione AI</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#f5f4f0; --surf:#fff; --surf2:#f0efe9;
+  --b:rgba(0,0,0,.1); --b2:rgba(0,0,0,.18);
+  --tx:#1a1a18; --tx2:#6b6b65; --tx3:#a0a09a;
+  --ac:#2d5a27; --ac-bg:#eaf2e8;
+  --red:#c0392b; --red-bg:#fdf0ee;
+  --ok:#1a6b3a; --ok-bg:#e6f4ec;
+  --r:12px; --rs:7px;
+}
+body{font-family:'Georgia',serif;background:var(--bg);color:var(--tx);min-height:100vh;padding:1.5rem 1rem 5rem;-webkit-text-size-adjust:100%}
+.wrap{max-width:580px;margin:0 auto}
+header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.hl h1{font-size:20px;font-weight:normal;letter-spacing:-.3px}
+.hl p{font-size:11px;color:var(--tx2);font-family:'Courier New',monospace;margin-top:2px}
+.nav{display:flex;gap:4px}
+.nb{font-family:'Courier New',monospace;font-size:12px;border:1px solid var(--b2);border-radius:20px;padding:5px 14px;background:none;color:var(--tx2);cursor:pointer;transition:all .15s;white-space:nowrap}
+.nb.on{background:var(--tx);color:var(--bg);border-color:var(--tx)}
+.nb:hover:not(.on){background:var(--surf2)}
+#view-cards{display:block}
+#view-quiz{display:none}
+.sbar{background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:10px 14px;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sbar-lbl{font-size:11px;color:var(--tx2);font-family:'Courier New',monospace;flex:1;min-width:100px}
+.bsm{font-family:'Courier New',monospace;font-size:11px;border:1px solid var(--b2);border-radius:var(--rs);padding:5px 10px;background:none;color:var(--tx2);cursor:pointer;white-space:nowrap;transition:all .15s}
+.bsm:hover{background:var(--surf2)}
+.bsm.ac{background:var(--ac-bg);color:var(--ac);border-color:rgba(45,90,39,.3)}
+#filein{display:none}
+.api{background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:12px 14px;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.api label{font-size:11px;color:var(--tx2);font-family:'Courier New',monospace;white-space:nowrap}
+.api input{flex:1;min-width:120px;font-family:'Courier New',monospace;font-size:12px;border:1px solid var(--b2);border-radius:var(--rs);padding:7px 10px;background:var(--bg);color:var(--tx);outline:none}
+.api input:focus{border-color:var(--ac)}
+.ast{font-size:11px;font-family:'Courier New',monospace;padding:3px 8px;border-radius:20px;white-space:nowrap}
+.ast.ok{background:var(--ac-bg);color:var(--ac)}
+.ast.no{background:#fef9e7;color:#9a7d0a}
+.insec{background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:14px;margin-bottom:1.25rem}
+.dtog{display:flex;margin-bottom:12px;border:1px solid var(--b2);border-radius:var(--rs);overflow:hidden}
+.db{flex:1;font-family:'Courier New',monospace;font-size:12px;padding:8px 10px;border:none;background:none;color:var(--tx2);cursor:pointer;transition:all .15s;text-align:center}
+.db.on{background:var(--tx);color:var(--bg)}
+.db:hover:not(.on){background:var(--surf2)}
+.irow{display:flex;gap:8px;flex-wrap:wrap}
+.irow select{font-family:'Georgia',serif;font-size:14px;border:1px solid var(--b2);border-radius:var(--rs);padding:10px;background:var(--bg);color:var(--tx);outline:none;cursor:pointer;width:120px;flex-shrink:0}
+.irow input[type=text]{flex:1;min-width:100px;font-family:'Georgia',serif;font-size:15px;border:1px solid var(--b2);border-radius:var(--rs);padding:10px 12px;background:var(--bg);color:var(--tx);outline:none}
+.irow input:focus,.irow select:focus{border-color:var(--ac)}
+.bpri{font-family:'Georgia',serif;font-size:14px;background:var(--ac);color:#fff;border:none;border-radius:var(--rs);padding:10px 18px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.bpri:hover{opacity:.85}
+.hint{font-size:11px;color:var(--tx3);font-family:'Courier New',monospace;margin-top:8px}
+.tbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;min-height:24px}
+.cnt{font-size:12px;color:var(--tx3);font-family:'Courier New',monospace}
+.bclr{font-size:12px;color:var(--red);background:none;border:none;cursor:pointer;font-family:'Courier New',monospace;padding:2px 4px;opacity:.6}
+.bclr:hover{opacity:1}
+#clist{display:flex;flex-direction:column;gap:10px}
+.empty{text-align:center;padding:3rem 1rem;color:var(--tx3);font-size:14px;font-style:italic;line-height:1.8}
+.fc{background:var(--surf);border:1px solid var(--b);border-radius:var(--r);overflow:hidden}
+.cf{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer;user-select:none;gap:8px}
+.cf:hover{background:var(--surf2)}
+.cw{font-size:16px;font-weight:normal;color:var(--tx);letter-spacing:-.2px;word-break:break-word}
+.tb{font-size:10px;font-family:'Courier New',monospace;border-radius:4px;padding:2px 6px;margin-left:7px;flex-shrink:0;white-space:nowrap}
+.tw{background:#f0efe9;color:#6b6b65;border:1px solid rgba(0,0,0,.1)}
+.tp{background:#e8f0fb;color:#2a5aab;border:1px solid rgba(42,90,171,.2)}
+.ti{background:#fdf3e6;color:#9a5c0a;border:1px solid rgba(154,92,10,.2)}
+.tf{background:#f0eaf8;color:#6b3a9a;border:1px solid rgba(107,58,154,.2)}
+.db2{font-size:10px;font-family:'Courier New',monospace;border-radius:4px;padding:2px 6px;margin-left:5px;flex-shrink:0;white-space:nowrap}
+.dfwd{background:#e8f0fb;color:#2a5aab;border:1px solid rgba(42,90,171,.15)}
+.drev{background:#f0eaf8;color:#6b3a9a;border:1px solid rgba(107,58,154,.15)}
+.ca{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ctog{font-size:11px;color:var(--tx3)}
+.del{background:none;border:none;color:var(--tx3);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px}
+.del:hover{color:var(--red)}
+.cb{display:none;border-top:1px solid var(--b);padding:14px;background:var(--surf2)}
+.cb.open{display:block}
+.sl{font-size:10px;font-family:'Courier New',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:5px}
+.tr2{font-size:20px;color:var(--tx);margin-bottom:4px;letter-spacing:-.3px}
+.lit{font-size:13px;color:var(--tx3);font-style:italic;margin-bottom:12px}
+.syns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.syn{background:var(--surf);border:1px solid var(--b2);border-radius:20px;padding:4px 11px;font-size:13px;color:var(--tx2)}
+.eit{font-size:14px;color:var(--tx2);line-height:1.65;border-left:2px solid var(--b2);padding-left:11px;font-style:italic;margin-bottom:7px}
+.eor{font-size:13px;color:var(--tx3);line-height:1.6;border-left:2px solid var(--b);padding-left:11px;font-style:italic}
+.tki{font-size:10px;color:var(--tx3);font-family:'Courier New',monospace;margin-top:10px;text-align:right}
+.lbar{display:flex;align-items:center;gap:10px;padding:13px 14px;background:var(--surf2);border-top:1px solid var(--b)}
+.spin{width:14px;height:14px;border:1.5px solid var(--b2);border-top-color:var(--ac);border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+.ltx{font-size:13px;color:var(--tx2);font-family:'Courier New',monospace}
+.err{font-size:12px;color:var(--red);padding:11px 14px;border-top:1px solid var(--b);background:var(--red-bg);font-family:'Courier New',monospace;word-break:break-word}
+.tcost{font-size:11px;color:var(--tx3);font-family:'Courier New',monospace;text-align:right;margin-top:1rem}
+.qmbar{display:flex;margin-bottom:1.25rem;border:1px solid var(--b2);border-radius:var(--rs);overflow:hidden}
+.qmb{flex:1;font-family:'Courier New',monospace;font-size:11px;padding:8px 6px;border:none;background:none;color:var(--tx2);cursor:pointer;text-align:center;transition:all .15s}
+.qmb.on{background:var(--tx);color:var(--bg)}
+.qmb:hover:not(.on){background:var(--surf2)}
+.qprog{display:flex;align-items:center;gap:10px;margin-bottom:1.25rem}
+.qpw{flex:1;height:4px;background:var(--surf2);border-radius:2px;overflow:hidden}
+.qpf{height:100%;background:var(--ac);border-radius:2px;transition:width .3s}
+.qpl{font-size:12px;color:var(--tx3);font-family:'Courier New',monospace;white-space:nowrap}
+.qcard{background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:2rem 1.5rem;text-align:center;margin-bottom:1.25rem;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.qql{font-size:11px;font-family:'Courier New',monospace;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em}
+.qw{font-size:26px;letter-spacing:-.4px;color:var(--tx);line-height:1.2}
+.qmeta{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;justify-content:center}
+.qirow{display:flex;gap:8px;margin-bottom:1rem}
+.qi{flex:1;font-family:'Georgia',serif;font-size:16px;border:1px solid var(--b2);border-radius:var(--rs);padding:11px 14px;background:var(--surf);color:var(--tx);outline:none;text-align:center}
+.qi:focus{border-color:var(--ac)}
+.qi.ok{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+.qi.no{border-color:var(--red);background:var(--red-bg);color:var(--red)}
+.bchk{font-family:'Georgia',serif;font-size:14px;background:var(--ac);color:#fff;border:none;border-radius:var(--rs);padding:11px 20px;cursor:pointer;white-space:nowrap}
+.bchk:hover{opacity:.85}
+.qfb{border-radius:var(--r);padding:14px 16px;margin-bottom:1rem;display:none}
+.qfb.ok{background:var(--ok-bg);border:1px solid rgba(26,107,58,.2)}
+.qfb.no{background:var(--red-bg);border:1px solid rgba(192,57,43,.2)}
+.qft{font-size:14px;margin-bottom:4px}
+.qfb.ok .qft{color:var(--ok)}
+.qfb.no .qft{color:var(--red)}
+.qfd{font-size:13px;color:var(--tx2);line-height:1.6}
+.bnxt{width:100%;font-family:'Georgia',serif;font-size:15px;background:none;border:1px solid var(--b2);border-radius:var(--rs);padding:12px;cursor:pointer;color:var(--tx2);transition:all .15s;display:none}
+.bnxt:hover{background:var(--surf2)}
+.qscore{background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:2rem;text-align:center;display:none}
+.snum{font-size:48px;color:var(--tx);margin-bottom:4px;letter-spacing:-2px}
+.slbl{font-size:14px;color:var(--tx2);margin-bottom:1.5rem}
+.brst{font-family:'Georgia',serif;font-size:14px;background:var(--ac);color:#fff;border:none;border-radius:var(--rs);padding:10px 24px;cursor:pointer}
+.qempty{text-align:center;padding:3rem 1rem;color:var(--tx3);font-size:14px;font-style:italic;line-height:1.8;display:none}
+@media(max-width:480px){
+  body{padding:1rem .75rem 5rem}
+  header{flex-direction:column;align-items:flex-start}
+  .hl h1{font-size:18px}
+  .irow select{width:105px;font-size:13px}
+  .bpri{padding:10px 13px;font-size:13px}
+  .qw{font-size:20px}
+  .qcard{padding:1.5rem 1rem}
+  .qmb{font-size:10px;padding:7px 4px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="hl">
+      <h1>Flashcard — Traduzione AI</h1>
+      <p>parole · phrasal verbs · idioms · frasi</p>
+    </div>
+    <div class="nav">
+      <button class="nb on" id="nb-cards" onclick="showView('cards')">Vocabolario</button>
+      <button class="nb" id="nb-quiz" onclick="showView('quiz')">Quiz</button>
+    </div>
+  </header>
+
+  <div id="view-cards">
+    <div class="sbar">
+      <span class="sbar-lbl" id="slbl">Vocabolario in memoria</span>
+      <button class="bsm ac" onclick="saveFile()">⬇ Salva</button>
+      <button class="bsm" onclick="document.getElementById('filein').click()">⬆ Carica</button>
+      <input type="file" id="filein" accept=".json" onchange="loadFile(event)">
+    </div>
+    <div class="api">
+      <label>API Key:</label>
+      <input type="password" id="akey" placeholder="sk-ant-..." oninput="chkKey()">
+      <span class="ast no" id="ast">non impostata</span>
+    </div>
+    <div class="insec">
+      <div class="dtog">
+        <button class="db on" id="db-fwd" onclick="setDir('fwd')">🌍 → 🇮🇹 &nbsp;Straniero → Italiano</button>
+        <button class="db" id="db-rev" onclick="setDir('rev')">🇮🇹 → 🌍 &nbsp;Italiano → Straniero</button>
+      </div>
+      <div class="irow">
+        <select id="lang" onchange="setDir(iDir)">
+          <option value="en">Inglese</option>
+          <option value="es">Spagnolo</option>
+          <option value="fr">Francese</option>
+          <option value="de">Tedesco</option>
+          <option value="pt">Portoghese</option>
+          <option value="ja">Giapponese</option>
+          <option value="zh">Cinese</option>
+          <option value="ru">Russo</option>
+          <option value="ar">Arabo</option>
+        </select>
+        <input type="text" id="win" placeholder="Inserisci una parola..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button class="bpri" onclick="addCard()">Aggiungi</button>
+      </div>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="tbar">
+      <span class="cnt" id="cnt"></span>
+      <button class="bclr" id="bclr" style="display:none" onclick="clearAll()">Cancella tutto</button>
+    </div>
+    <div id="clist"></div>
+    <div class="tcost" id="tcost"></div>
+  </div>
+
+  <div id="view-quiz">
+    <div class="qempty" id="qempty">
+      Nessuna flashcard disponibile.<br>Torna al Vocabolario e aggiungi qualche parola prima.
+    </div>
+    <div id="qmain" style="display:none">
+      <div class="qmbar">
+        <button class="qmb on" id="qm-mixed" onclick="setQMode('mixed')">🔀 Misto</button>
+        <button class="qmb" id="qm-fwd" onclick="setQMode('fwd')">🌍→🇮🇹 Straniero→IT</button>
+        <button class="qmb" id="qm-rev" onclick="setQMode('rev')">🇮🇹→🌍 Italiano→Straniero</button>
+      </div>
+      <div class="qprog">
+        <div class="qpw"><div class="qpf" id="qpf" style="width:0%"></div></div>
+        <span class="qpl" id="qpl">0 / 0</span>
+      </div>
+      <div class="qcard">
+        <div class="qql" id="qql">—</div>
+        <div class="qw" id="qqw">—</div>
+        <div class="qmeta">
+          <span class="tb" id="qtb"></span>
+          <span style="font-size:11px;color:var(--tx3);font-family:'Courier New',monospace" id="qll"></span>
+        </div>
+      </div>
+      <div class="qirow">
+        <input type="text" class="qi" id="qi" placeholder="Scrivi la traduzione..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button class="bchk" id="bchk" onclick="checkAns()">Controlla</button>
+      </div>
+      <div class="qfb" id="qfb">
+        <div class="qft" id="qft"></div>
+        <div class="qfd" id="qfd"></div>
+      </div>
+      <button class="bnxt" id="bnxt" onclick="nextQ()">Prossima →</button>
+    </div>
+    <div class="qscore" id="qscore">
+      <div class="snum" id="snum">0/0</div>
+      <div class="slbl" id="slbl2"></div>
+      <br>
+      <button class="brst" onclick="startQuiz()">Ricomincia</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var LN={en:'inglese',es:'spagnolo',fr:'francese',de:'tedesco',pt:'portoghese',ja:'giapponese',zh:'cinese',ru:'russo',ar:'arabo'};
+var PI=1/1e6,PO=5/1e6;
+var TM={word:{c:'tw',l:'parola'},phrasal:{c:'tp',l:'phrasal verb'},idiom:{c:'ti',l:'idiom'},phrase:{c:'tf',l:'frase'}};
+function tm(t){return TM[t]||TM.word;}
+
+var PRE=[
+  // ── Batch originale ──
+  {word:'Bargain',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'affare / occasione',                     lit:null,               sy:['deal','good buy','steal'],                              ei:'Ho trovato un vero affare al mercato: scarpe di qualità a metà prezzo.',      eo:'I found a real bargain at the market: quality shoes at half price.'}},
+  {word:'Sorting out',     dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrasal',tr:'sistemare / risolvere',                  lit:null,               sy:['figuring out','resolving','dealing with'],               ei:'Sto cercando di sistemare tutti i documenti prima della scadenza.',           eo:"I'm trying to sort out all the paperwork before the deadline."}},
+  {word:'Run out',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrasal',tr:'esaurire / finire',                      lit:null,               sy:['use up','deplete','exhaust'],                            ei:'Siamo rimasti senza latte proprio quando avevo voglia di caffè.',             eo:'We ran out of milk just when I felt like having coffee.'}},
+  {word:'Straddling',      dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'a cavalcioni / a cavallo di',             lit:null,               sy:['spanning','bridging','overlapping'],                     ei:'La città si trova a cavallo tra due regioni diverse.',                        eo:'The city is straddling two different regions.'}},
+  {word:'Deprecate',       dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'deprecare / sconsigliare',               lit:null,               sy:['discourage','disapprove','phase out'],                   ei:"Questa funzione è stata deprecata nell'ultima versione del software.",         eo:'This function was deprecated in the latest software version.'}},
+  {word:'Tease',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'prendere in giro / stuzzicare',          lit:null,               sy:['mock','taunt','needle'],                                 ei:'I suoi amici lo stuzzicavano bonariamente per il nuovo taglio.',              eo:'His friends teased him good-naturedly about his new haircut.'}},
+  {word:'Dripping',        dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'gocciolante / che stilla',               lit:null,               sy:['leaking','oozing','trickling'],                          ei:'Tornò a casa completamente fradicio, con i vestiti gocciolanti.',             eo:'He came home completely soaked, his clothes dripping.'}},
+  {word:'Spill the beans', dir:'fwd',lc:'en',ln:'inglese',data:{type:'idiom',  tr:'rivelare un segreto / fare una soffiata',lit:'versare i fagioli',sy:['let the cat out of the bag','give the game away','blab'],ei:'Ha rivelato tutto alla festa e ha rovinato la sorpresa.',              eo:'She spilled the beans at the party and ruined the surprise.'}},
+  {word:'Giddy',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'stordito / euforico',                    lit:null,               sy:['dizzy','lightheaded','euphoric'],                        ei:'Si sentiva euforica di eccitazione prima del concerto.',                      eo:'She felt giddy with excitement before the concert.'}},
+  {word:'Left me reeling', dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrase', tr:'mi ha lasciato sconvolto',               lit:null,               sy:['knocked me sideways','floored me','left me stunned'],   ei:'La notizia mi ha lasciato completamente sconvolto per giorni.',              eo:'The news left me reeling for days.'}},
+  {word:'Rapturous',       dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'estatico / rapito',                      lit:null,               sy:['ecstatic','elated','enraptured'],                        ei:'Il pubblico ha accolto lo spettacolo con un applauso estatico.',              eo:'The audience greeted the performance with rapturous applause.'}},
+  {word:'Heady',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'inebriante / esaltante',                 lit:null,               sy:['intoxicating','exhilarating','thrilling'],               ei:'I primi anni della startup erano un periodo inebriante di possibilità.',       eo:'The early years of the startup were a heady time of endless possibilities.'}},
+  // ── Nuovo batch ──
+  {word:'Settle',          dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'sistemarsi / stabilirsi / risolvere',    lit:null,               sy:['resolve','establish','calm down'],                       ei:'Dopo anni di viaggi, decise finalmente di stabilirsi in campagna.',           eo:'After years of travelling, she finally decided to settle in the countryside.'}},
+  {word:'Brushing',        dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'sfiorando / spazzolando',                lit:null,               sy:['grazing','stroking','sweeping'],                         ei:'Le sue dita la sfiorarono leggermente mentre passava accanto.',               eo:'His fingers brushed her lightly as he passed by.'}},
+  {word:'Darting out',     dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrasal',tr:'schizzare fuori / balzare fuori',         lit:null,               sy:['rushing out','shooting out','springing out'],            ei:'Il gatto schizzò fuori dalla porta appena la aprì.',                          eo:'The cat darted out of the door as soon as she opened it.'}},
+  {word:'Spurt',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'getto / schizzo / scatto',               lit:null,               sy:['burst','gush','surge'],                                  ei:'Un getto di sangue uscì dalla ferita prima che riuscisse a fermarla.',        eo:'A spurt of blood came from the wound before he could stop it.'}},
+  {word:'Shaking',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'tremante / scuotendo',                   lit:null,               sy:['trembling','quivering','shuddering'],                    ei:'Le mani le tremavano mentre leggeva la lettera.',                             eo:'Her hands were shaking as she read the letter.'}},
+  {word:'Catches',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'afferra / cattura / coglie',             lit:null,               sy:['grabs','seizes','snags'],                                ei:'Il portiere afferra la palla con un tuffo spettacolare.',                     eo:'The goalkeeper catches the ball with a spectacular dive.'}},
+  {word:'Aching',          dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'dolente / che fa male / che anela',      lit:null,               sy:['throbbing','hurting','longing'],                         ei:'Le gambe dolenti dopo l\'allenamento erano la prova di una buona sessione.',  eo:'His aching legs after training were proof of a good session.'}},
+  {word:'Pooling',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'raccogliersi in pozze / confluire',       lit:null,               sy:['collecting','gathering','accumulating'],                 ei:'Il sangue si raccoglieva lentamente sul pavimento di marmo.',                 eo:'Blood was pooling slowly on the marble floor.'}},
+  {word:'Kneading',        dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'impastare / massaggiare con forza',      lit:null,               sy:['massaging','working','pressing'],                        ei:'Impastò il pane con le mani per dieci minuti.',                              eo:'She spent ten minutes kneading the bread dough by hand.'}},
+  {word:'Coating',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'rivestimento / strato / ricoprire',      lit:null,               sy:['covering','layering','glazing'],                         ei:'Ricoprì il pollo di spezie prima di metterlo in forno.',                      eo:'She coating the chicken in spices before putting it in the oven.'}},
+  {word:'Filthy',          dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'sporco / sudicio / osceno',              lit:null,               sy:['dirty','disgusting','foul'],                             ei:'Tornò a casa con le scarpe sudicie dopo la passeggiata nel fango.',           eo:'He came home with filthy shoes after the walk through the mud.'}},
+  {word:'Wield',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'maneggiare / esercitare (potere)',        lit:null,               sy:['brandish','handle','exercise'],                          ei:'Il generale esercitava un\'autorità assoluta sui suoi uomini.',               eo:'The general wielded absolute authority over his men.'}},
+  {word:'Blunt',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'smusso / ottuso / diretto / brusco',     lit:null,               sy:['dull','direct','straightforward'],                       ei:'Fu diretto: disse esattamente quello che pensava senza giri di parole.',      eo:'He was blunt: he said exactly what he thought without beating around the bush.'}},
+  {word:'Seize',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'afferrare / impadronirsi / cogliere',    lit:null,               sy:['grab','grasp','capture'],                                ei:'Colse l\'occasione al volo e accettò l\'offerta di lavoro.',                  eo:'She seized the opportunity and accepted the job offer.'}},
+  {word:'Clumsy',          dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'goffo / maldestro',                      lit:null,               sy:['awkward','ungainly','ham-fisted'],                       ei:'Era così goffo che rovesciò il caffè sulla camicia nuova.',                   eo:'He was so clumsy he spilled coffee on his new shirt.'}},
+  {word:'Thrill',          dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'brivido / emozione intensa',             lit:null,               sy:['excitement','rush','exhilaration'],                      ei:'Sentì un brivido di eccitazione quando salì sul palco per la prima volta.',   eo:'She felt a thrill of excitement when she stepped on stage for the first time.'}},
+  {word:'Refined',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'raffinato / elegante',                   lit:null,               sy:['sophisticated','polished','cultured'],                   ei:'Il suo gusto raffinato si notava in ogni dettaglio della casa.',              eo:'Her refined taste was evident in every detail of her home.'}},
+  {word:'Help myself',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrase', tr:'servirmi da solo / non riuscire a trattenermi',lit:null,sy:["serve myself","can't resist","treat myself"],           ei:'Non riuscivo a trattenermi dal mangiare un altro pezzo di torta.',                    eo:"I couldn't help myself from eating another piece of cake."}},
+  {word:'Left hand down a bit',dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrase', tr:'sterza leggermente a sinistra',                  lit:null,sy:['steer left','turn left','left a bit'],              ei:'Sterza un po\' a sinistra — stai andando verso il fosso!',                            eo:"Left hand down a bit — you're heading for the ditch!"}}
+];
+
+var cards=[],iDir='fwd',qMode='mixed';
+var qQueue=[],qIdx=0,qOk=0,qDone=false;
+
+function init(){
+  cards=PRE.map(function(p,i){return{id:Date.now()+i,word:p.word,dir:p.dir,lc:p.lc,ln:p.ln,status:'ready',data:p.data,tok:null};});
+  chkKey();setDir('fwd');render();
+}
+
+function showView(v){
+  var vc=document.getElementById('view-cards');
+  var vq=document.getElementById('view-quiz');
+  var nc=document.getElementById('nb-cards');
+  var nq=document.getElementById('nb-quiz');
+  if(v==='quiz'){
+    vc.style.display='none';vq.style.display='block';
+    nc.className='nb';nq.className='nb on';
+    startQuiz();
+  } else {
+    vc.style.display='block';vq.style.display='none';
+    nc.className='nb on';nq.className='nb';
+  }
+}
+
+function setDir(d){
+  iDir=d;
+  document.getElementById('db-fwd').className='db'+(d==='fwd'?' on':'');
+  document.getElementById('db-rev').className='db'+(d==='rev'?' on':'');
+  var ln=LN[document.getElementById('lang').value]||'inglese';
+  var wi=document.getElementById('win');
+  var hi=document.getElementById('hint');
+  if(d==='fwd'){wi.placeholder='Parola in '+ln+'...';hi.textContent='Scrivi in '+ln+' → ottieni la traduzione italiana';}
+  else{wi.placeholder='Parola o frase in italiano...';hi.textContent='Scrivi in italiano → ottieni la parola in '+ln;}
+}
+
+function chkKey(){
+  var k=document.getElementById('akey').value.trim();
+  var s=document.getElementById('ast');
+  if(k.startsWith('sk-ant-')&&k.length>20){s.textContent='ok';s.className='ast ok';}
+  else{s.textContent='non impostata';s.className='ast no';}
+}
+
+function saveFile(){
+  var exp=cards.filter(function(c){return c.status==='ready';}).map(function(c){return{word:c.word,dir:c.dir,lc:c.lc,ln:c.ln,data:c.data};});
+  var b=new Blob([JSON.stringify({v:2,cards:exp},null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='flashcards.json';a.click();URL.revokeObjectURL(a.href);
+  document.getElementById('slbl').textContent='Salvato: flashcards.json';
+}
+function loadFile(e){
+  var f=e.target.files[0];if(!f)return;
+  var r=new FileReader();
+  r.onload=function(ev){
+    try{
+      var p=JSON.parse(ev.target.result);
+      cards=(p.cards||p).map(function(c,i){return{id:Date.now()+i,word:c.word,dir:c.dir||'fwd',lc:c.lc||'en',ln:c.ln||'inglese',status:'ready',data:c.data,tok:null};});
+      document.getElementById('slbl').textContent='Caricato: '+f.name;
+      render();
+    }catch(err){alert('Errore: '+err.message);}
+  };
+  r.readAsText(f);e.target.value='';
+}
+
+document.getElementById('win').addEventListener('keydown',function(e){if(e.key==='Enter')addCard();});
+
+async function addCard(){
+  var wi=document.getElementById('win');
+  var lc=document.getElementById('lang').value;
+  var ak=document.getElementById('akey').value.trim();
+  var entry=wi.value.trim();
+  if(!entry){wi.focus();return;}
+  if(!ak||!ak.startsWith('sk-ant-')){document.getElementById('akey').focus();alert('Inserisci prima la tua API key Anthropic.');return;}
+  wi.value='';
+  var ln=LN[lc];
+  var card={id:Date.now(),word:entry,dir:iDir,lc:lc,ln:ln,status:'loading',data:null,err:'',tok:null};
+  cards.unshift(card);render();
+  var sys,msg;
+  if(iDir==='fwd'){
+    sys='You are a bilingual dictionary (source→Italian). Respond ONLY with valid JSON, no markdown.\nSchema: {"type":"word|phrasal|idiom|phrase","tr":"Italian translation","lit":"literal if idiom else null","sy":["syn1 in '+ln+'","syn2 in '+ln+'","syn3 in '+ln+'"],"ei":"example in Italian","eo":"same in '+ln+'"}';
+    msg=ln+': "'+entry+'"';
+  } else {
+    sys='You are a bilingual dictionary (Italian→target). Respond ONLY with valid JSON, no markdown.\nSchema: {"type":"word|phrasal|idiom|phrase","tr":"best equivalent in '+ln+'","lit":"literal back-translation if idiom else null","sy":["syn1 in '+ln+'","syn2 in '+ln+'","syn3 in '+ln+'"],"ei":"example in Italian","eo":"same in '+ln+'"}';
+    msg='Italian: "'+entry+'" → translate to '+ln;
+  }
+  try{
+    var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':ak,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,system:sys,messages:[{role:'user',content:msg}]})});
+    if(!res.ok){var er=await res.json();throw new Error(er&&er.error&&er.error.message?er.error.message:'HTTP '+res.status);}
+    var d=await res.json();
+    var txt=(d.content&&d.content[0]&&d.content[0].text?d.content[0].text:'').replace(/```json|```/g,'').trim();
+    var p=JSON.parse(txt);
+    card.status='ready';
+    card.data={type:p.type||'word',tr:p.tr||'',lit:p.lit||null,sy:Array.isArray(p.sy)?p.sy:[],ei:p.ei||'',eo:p.eo||''};
+    card.tok=d.usage||null;
+  }catch(e){card.status='error';card.err=e.message;}
+  render();
+}
+
+function tog(id){
+  var b=document.getElementById('cb-'+id);
+  var t=document.getElementById('ct-'+id);
+  if(!b)return;
+  b.classList.toggle('open');
+  if(t)t.textContent=b.classList.contains('open')?'▲':'▼';
+}
+function del(id){cards=cards.filter(function(c){return c.id!==id;});render();}
+function clearAll(){if(!confirm('Eliminare tutte le flashcard?'))return;cards=[];render();}
+function cost(t){if(!t)return null;return{c:t.input_tokens*PI+t.output_tokens*PO,i:t.input_tokens,o:t.output_tokens};}
+
+function render(){
+  var list=document.getElementById('clist');
+  var cnt=document.getElementById('cnt');
+  var bc=document.getElementById('bclr');
+  var tc=document.getElementById('tcost');
+  if(cards.length===0){
+    list.innerHTML='<div class="empty">Nessuna flashcard ancora.<br>Aggiungi parole, phrasal verbs, idioms o frasi.</div>';
+    cnt.textContent='';bc.style.display='none';tc.textContent='';return;
+  }
+  var rdy=cards.filter(function(c){return c.status==='ready';}).length;
+  cnt.textContent=cards.length+' cards · '+rdy+' pronte';
+  bc.style.display='';
+  var tot=0;cards.forEach(function(c){var r=cost(c.tok);if(r)tot+=r.c;});
+  tc.textContent=tot>0?'costo sessione: $'+tot.toFixed(5):'';
+  list.innerHTML=cards.map(function(c){
+    if(c.status==='loading')return '<div class="fc"><div class="cf" style="cursor:default"><div style="display:flex;align-items:center;flex:1"><span class="cw">'+c.word+'</span></div><div class="ca"><div class="spin"></div><button class="del" onclick="del('+c.id+')">×</button></div></div><div class="lbar"><div class="spin"></div><span class="ltx">Generazione in corso...</span></div></div>';
+    if(c.status==='error')return '<div class="fc"><div class="cf" style="cursor:default"><div style="display:flex;align-items:center;flex:1"><span class="cw">'+c.word+'</span></div><div class="ca"><button class="del" onclick="del('+c.id+')">×</button></div></div><div class="err">Errore: '+(c.err||'elimina e riprova')+'</div></div>';
+    var d=c.data,t=tm(d.type);
+    var dfwd=c.dir!=='rev';
+    var syL=d.type==='idiom'?'Espressioni simili ('+c.ln+')':d.type==='phrasal'?'Phrasal simili ('+c.ln+')':'Sinonimi ('+c.ln+')';
+    var sy=(d.sy||[]).map(function(s){return'<span class="syn">'+s+'</span>';}).join('');
+    var ci=cost(c.tok);
+    var tks=ci?ci.i+'↑ '+ci.o+'↓ · ~$'+ci.c.toFixed(5):'';
+    return '<div class="fc"><div class="cf" onclick="tog('+c.id+')"><div style="display:flex;align-items:center;min-width:0;flex:1;flex-wrap:wrap;gap:2px"><span class="cw">'+c.word+'</span><span class="tb '+t.c+'">'+t.l+'</span><span class="db2 '+(dfwd?'dfwd':'drev')+'">'+(dfwd?c.ln+'→IT':'IT→'+c.ln)+'</span></div><div class="ca"><span id="ct-'+c.id+'" class="ctog">▼</span><button class="del" onclick="event.stopPropagation();del('+c.id+')">×</button></div></div><div class="cb" id="cb-'+c.id+'"><div class="sl">'+(dfwd?'Traduzione italiana':'Parola in '+c.ln)+'</div><div class="tr2">'+d.tr+'</div>'+(d.lit?'<div class="lit">lett. "'+d.lit+'"</div>':'')+'<div class="sl">'+syL+'</div><div class="syns">'+sy+'</div><div class="sl">Esempio</div><div class="eit">'+d.ei+'</div><div class="eor">'+d.eo+'</div>'+(tks?'<div class="tki">'+tks+'</div>':'')+'</div></div>';
+  }).join('');
+}
+
+function setQMode(m){
+  qMode=m;
+  ['mixed','fwd','rev'].forEach(function(x){document.getElementById('qm-'+x).className='qmb'+(x===m?' on':'');});
+  startQuiz();
+}
+
+function startQuiz(){
+  var rdy=cards.filter(function(c){return c.status==='ready'&&c.data&&c.data.tr;});
+  var qe=document.getElementById('qempty');
+  var qm=document.getElementById('qmain');
+  var qs=document.getElementById('qscore');
+  if(rdy.length===0){qe.style.display='block';qm.style.display='none';qs.style.display='none';return;}
+  qe.style.display='none';qs.style.display='none';qm.style.display='block';
+  var items=[];
+  rdy.forEach(function(c){
+    if(qMode==='mixed'||qMode==='fwd')items.push({c:c,ask:'fwd'});
+    if(qMode==='mixed'||qMode==='rev')items.push({c:c,ask:'rev'});
+  });
+  qQueue=items.sort(function(){return Math.random()-.5;});
+  qIdx=0;qOk=0;qDone=false;
+  showQ();
+}
+
+function showQ(){
+  var tot=qQueue.length;
+  document.getElementById('qpf').style.width=(qIdx/tot*100)+'%';
+  document.getElementById('qpl').textContent=qIdx+' / '+tot;
+  var item=qQueue[qIdx];
+  var c=item.c,ask=item.ask;
+  var t=tm(c.data.type);
+  var tb=document.getElementById('qtb');
+  tb.textContent=t.l;tb.className='tb '+t.c;
+  if(ask==='fwd'){
+    document.getElementById('qql').textContent='Come si dice in italiano?';
+    document.getElementById('qqw').textContent=c.word;
+    document.getElementById('qll').textContent=c.ln;
+    document.getElementById('qi').placeholder='Traduzione italiana...';
+  } else {
+    document.getElementById('qql').textContent='Come si dice in '+c.ln+'?';
+    document.getElementById('qqw').textContent=c.data.tr;
+    document.getElementById('qll').textContent='italiano';
+    document.getElementById('qi').placeholder='Parola in '+c.ln+'...';
+  }
+  var qi=document.getElementById('qi');
+  qi.value='';qi.className='qi';qi.disabled=false;
+  document.getElementById('qfb').style.display='none';
+  document.getElementById('qfb').className='qfb';
+  document.getElementById('bnxt').style.display='none';
+  document.getElementById('bchk').style.display='';
+  qDone=false;
+  setTimeout(function(){qi.focus();},50);
+}
+
+document.getElementById('qi').addEventListener('keydown',function(e){
+  if(e.key==='Enter'){if(!qDone)checkAns();else nextQ();}
+});
+
+function norm(s){
+  return (s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,'').replace(/\s+/g,' ').trim();
+}
+
+function checkAns(){
+  if(qDone)return;
+  var item=qQueue[qIdx];
+  var c=item.c,ask=item.ask;
+  var raw=document.getElementById('qi').value;
+  if(!raw.trim())return;
+  var correct=ask==='fwd'?c.data.tr:c.word;
+  var parts=correct.split(/[\/,]/).map(function(p){return norm(p);}).filter(Boolean);
+  var un=norm(raw);
+  var ok=parts.some(function(p){return p===un;})||norm(correct)===un;
+  qDone=true;if(ok)qOk++;
+  var qi=document.getElementById('qi');
+  qi.className='qi '+(ok?'ok':'no');qi.disabled=true;
+  var fb=document.getElementById('qfb');
+  var ft=document.getElementById('qft');
+  var fd=document.getElementById('qfd');
+  fb.className='qfb '+(ok?'ok':'no');
+  ft.textContent=ok?'Corretto!':'Non esatto';
+  if(ok){fd.textContent='"'+c.word+'" = "'+correct+'"';}
+  else{
+    var lit=c.data.lit?'<br><em>lett. "'+c.data.lit+'"</em>':'';
+    fd.innerHTML='Risposta corretta: <strong>'+correct+'</strong>'+lit+'<br><span style="color:var(--tx3);font-style:italic">'+c.data.ei+'</span>';
+  }
+  fb.style.display='block';
+  document.getElementById('bchk').style.display='none';
+  document.getElementById('bnxt').style.display='block';
+  document.getElementById('bnxt').textContent=qIdx+1<qQueue.length?'Prossima →':'Risultati →';
+}
+
+function nextQ(){qIdx++;if(qIdx>=qQueue.length)showScore();else showQ();}
+
+function showScore(){
+  document.getElementById('qmain').style.display='none';
+  document.getElementById('qscore').style.display='block';
+  document.getElementById('snum').textContent=qOk+'/'+qQueue.length;
+  var pct=Math.round(qOk/qQueue.length*100);
+  var msg=pct===100?'perfetto!':pct>=80?'ottimo risultato':pct>=60?'buon lavoro':pct>=40?"ancora un po' di ripasso":'ripassia ancora';
+  document.getElementById('slbl2').textContent=pct+'% — '+msg;
+}
+
+init();
+</script>
+</body>
+</html>
