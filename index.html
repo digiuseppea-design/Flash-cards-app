@@ -396,10 +396,21 @@ window.setDir = setDir;
 function chkKey() {
   var k=document.getElementById('akey').value.trim();
   var s=document.getElementById('ast');
-  if(k.startsWith('sk-ant-')&&k.length>20){s.textContent='ok';s.className='ast ok';}
-  else{s.textContent='non impostata';s.className='ast no';}
+  if(k.startsWith('sk-ant-')&&k.length>20){
+    s.textContent='ok';s.className='ast ok';
+    try{localStorage.setItem('fc_apikey',k);}catch(e){}
+  } else {
+    s.textContent='non impostata';s.className='ast no';
+  }
 }
 window.chkKey = chkKey;
+
+function loadApiKey() {
+  try {
+    var saved=localStorage.getItem('fc_apikey');
+    if(saved){document.getElementById('akey').value=saved;chkKey();}
+  } catch(e){}
+}
 
 // ── ADD CARD ──
 document.getElementById('win').addEventListener('keydown', function(e){if(e.key==='Enter')addCard();});
@@ -611,6 +622,7 @@ function showScore() {
 
 // ── START ──
 setDir('fwd');
+loadApiKey();
 loadFromFirestore();
 
 </script>
