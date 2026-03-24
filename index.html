@@ -571,7 +571,7 @@ function renderCards(){
     var dfwd=c.dir!=='rev';
     var syL=d.type==='idiom'?'Espressioni simili ('+c.ln+')':d.type==='phrasal'?'Phrasal simili ('+c.ln+')':'Sinonimi ('+c.ln+')';
     var sy=(d.sy||[]).map(function(s){return'<span class="syn">'+s+'</span>';}).join('');
-    var hardBtn='<span class="diff-badge'+(c.hard?' hard':''")+'" onclick="toggleHard(\''+c.id+'\',event)" title="'+(c.hard?'Rimuovi da difficili':'Segna come difficile')+'">🔥</span>';
+    var hardBtn='<span class="diff-badge'+(c.hard?' hard':'')+'" onclick="toggleHard(\''+c.id+'\',event)" title="'+(c.hard?'Rimuovi da difficili':'Segna come difficile')+'">🔥</span>';
     var statsHtml='';
     if(c.stats&&(c.stats.ok||c.stats.no)){
       var tot2=c.stats.ok+c.stats.no;
