@@ -26,12 +26,16 @@ header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b
 .nb:hover:not(.on){background:var(--surf2)}
 #view-cards{display:block}
 #view-quiz{display:none}
-.sbar{background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:10px 14px;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.sbar-lbl{font-size:11px;color:var(--tx2);font-family:'Courier New',monospace;flex:1;min-width:100px}
-.bsm{font-family:'Courier New',monospace;font-size:11px;border:1px solid var(--b2);border-radius:var(--rs);padding:5px 10px;background:none;color:var(--tx2);cursor:pointer;white-space:nowrap;transition:all .15s}
-.bsm:hover{background:var(--surf2)}
-.bsm.ac{background:var(--ac-bg);color:var(--ac);border-color:rgba(45,90,39,.3)}
-#filein{display:none}
+
+/* sync bar */
+.syncbar{background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:10px 14px;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sync-lbl{font-size:11px;color:var(--tx2);font-family:'Courier New',monospace;flex:1;min-width:120px}
+.sync-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sync-dot.ok{background:#1a6b3a}
+.sync-dot.loading{background:#e6a817;animation:pulse .8s ease-in-out infinite alternate}
+.sync-dot.err{background:var(--red)}
+@keyframes pulse{to{opacity:.3}}
+
 .api{background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:12px 14px;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .api label{font-size:11px;color:var(--tx2);font-family:'Courier New',monospace;white-space:nowrap}
 .api input{flex:1;min-width:120px;font-family:'Courier New',monospace;font-size:12px;border:1px solid var(--b2);border-radius:var(--rs);padding:7px 10px;background:var(--bg);color:var(--tx);outline:none}
@@ -148,17 +152,18 @@ header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b
   </header>
 
   <div id="view-cards">
-    <div class="sbar">
-      <span class="sbar-lbl" id="slbl">Vocabolario in memoria</span>
-      <button class="bsm ac" onclick="saveFile()">⬇ Salva</button>
-      <button class="bsm" onclick="document.getElementById('filein').click()">⬆ Carica</button>
-      <input type="file" id="filein" accept=".json" onchange="loadFile(event)">
+    <!-- SYNC BAR -->
+    <div class="syncbar">
+      <div class="sync-dot loading" id="sync-dot"></div>
+      <span class="sync-lbl" id="sync-lbl">Connessione a Firebase...</span>
     </div>
+
     <div class="api">
-      <label>API Key:</label>
+      <label>API Key Anthropic:</label>
       <input type="password" id="akey" placeholder="sk-ant-..." oninput="chkKey()">
       <span class="ast no" id="ast">non impostata</span>
     </div>
+
     <div class="insec">
       <div class="dtog">
         <button class="db on" id="db-fwd" onclick="setDir('fwd')">🌍 → 🇮🇹 &nbsp;Straniero → Italiano</button>
@@ -181,6 +186,7 @@ header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b
       </div>
       <div class="hint" id="hint"></div>
     </div>
+
     <div class="tbar">
       <span class="cnt" id="cnt"></span>
       <button class="bclr" id="bclr" style="display:none" onclick="clearAll()">Cancella tutto</button>
@@ -230,15 +236,27 @@ header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b
   </div>
 </div>
 
-<script>
-"use strict";
-var LN={en:'inglese',es:'spagnolo',fr:'francese',de:'tedesco',pt:'portoghese',ja:'giapponese',zh:'cinese',ru:'russo',ar:'arabo'};
-var PI=1/1e6,PO=5/1e6;
-var TM={word:{c:'tw',l:'parola'},phrasal:{c:'tp',l:'phrasal verb'},idiom:{c:'ti',l:'idiom'},phrase:{c:'tf',l:'frase'}};
-function tm(t){return TM[t]||TM.word;}
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-var PRE=[
-  // ── Batch originale ──
+// ── FIREBASE CONFIG ──
+const firebaseConfig = {
+  apiKey: "AIzaSyAZjUXwI06n5qmUK2oof1awAM4EY_w0GOs",
+  authDomain: "flash-cards-916cc.firebaseapp.com",
+  projectId: "flash-cards-916cc",
+  storageBucket: "flash-cards-916cc.firebasestorage.app",
+  messagingSenderId: "74802688899",
+  appId: "1:74802688899:web:599faee59a2671c96ffcb6"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const COLL = "flashcards";
+
+// ── PRELOADED (solo se Firestore è vuoto) ──
+const PRE = [
   {word:'Bargain',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'affare / occasione',                     lit:null,               sy:['deal','good buy','steal'],                              ei:'Ho trovato un vero affare al mercato: scarpe di qualità a metà prezzo.',      eo:'I found a real bargain at the market: quality shoes at half price.'}},
   {word:'Sorting out',     dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrasal',tr:'sistemare / risolvere',                  lit:null,               sy:['figuring out','resolving','dealing with'],               ei:'Sto cercando di sistemare tutti i documenti prima della scadenza.',           eo:"I'm trying to sort out all the paperwork before the deadline."}},
   {word:'Run out',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrasal',tr:'esaurire / finire',                      lit:null,               sy:['use up','deplete','exhaust'],                            ei:'Siamo rimasti senza latte proprio quando avevo voglia di caffè.',             eo:'We ran out of milk just when I felt like having coffee.'}},
@@ -251,37 +269,101 @@ var PRE=[
   {word:'Left me reeling', dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrase', tr:'mi ha lasciato sconvolto',               lit:null,               sy:['knocked me sideways','floored me','left me stunned'],   ei:'La notizia mi ha lasciato completamente sconvolto per giorni.',              eo:'The news left me reeling for days.'}},
   {word:'Rapturous',       dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'estatico / rapito',                      lit:null,               sy:['ecstatic','elated','enraptured'],                        ei:'Il pubblico ha accolto lo spettacolo con un applauso estatico.',              eo:'The audience greeted the performance with rapturous applause.'}},
   {word:'Heady',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'inebriante / esaltante',                 lit:null,               sy:['intoxicating','exhilarating','thrilling'],               ei:'I primi anni della startup erano un periodo inebriante di possibilità.',       eo:'The early years of the startup were a heady time of endless possibilities.'}},
-  // ── Nuovo batch ──
   {word:'Settle',          dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'sistemarsi / stabilirsi / risolvere',    lit:null,               sy:['resolve','establish','calm down'],                       ei:'Dopo anni di viaggi, decise finalmente di stabilirsi in campagna.',           eo:'After years of travelling, she finally decided to settle in the countryside.'}},
   {word:'Brushing',        dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'sfiorando / spazzolando',                lit:null,               sy:['grazing','stroking','sweeping'],                         ei:'Le sue dita la sfiorarono leggermente mentre passava accanto.',               eo:'His fingers brushed her lightly as he passed by.'}},
   {word:'Darting out',     dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrasal',tr:'schizzare fuori / balzare fuori',         lit:null,               sy:['rushing out','shooting out','springing out'],            ei:'Il gatto schizzò fuori dalla porta appena la aprì.',                          eo:'The cat darted out of the door as soon as she opened it.'}},
   {word:'Spurt',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'getto / schizzo / scatto',               lit:null,               sy:['burst','gush','surge'],                                  ei:'Un getto di sangue uscì dalla ferita prima che riuscisse a fermarla.',        eo:'A spurt of blood came from the wound before he could stop it.'}},
   {word:'Shaking',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'tremante / scuotendo',                   lit:null,               sy:['trembling','quivering','shuddering'],                    ei:'Le mani le tremavano mentre leggeva la lettera.',                             eo:'Her hands were shaking as she read the letter.'}},
   {word:'Catches',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'afferra / cattura / coglie',             lit:null,               sy:['grabs','seizes','snags'],                                ei:'Il portiere afferra la palla con un tuffo spettacolare.',                     eo:'The goalkeeper catches the ball with a spectacular dive.'}},
-  {word:'Aching',          dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'dolente / che fa male / che anela',      lit:null,               sy:['throbbing','hurting','longing'],                         ei:'Le gambe dolenti dopo l\'allenamento erano la prova di una buona sessione.',  eo:'His aching legs after training were proof of a good session.'}},
+  {word:'Aching',          dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'dolente / che fa male / che anela',      lit:null,               sy:['throbbing','hurting','longing'],                         ei:"Le gambe dolenti dopo l'allenamento erano la prova di una buona sessione.",   eo:'His aching legs after training were proof of a good session.'}},
   {word:'Pooling',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'raccogliersi in pozze / confluire',       lit:null,               sy:['collecting','gathering','accumulating'],                 ei:'Il sangue si raccoglieva lentamente sul pavimento di marmo.',                 eo:'Blood was pooling slowly on the marble floor.'}},
   {word:'Kneading',        dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'impastare / massaggiare con forza',      lit:null,               sy:['massaging','working','pressing'],                        ei:'Impastò il pane con le mani per dieci minuti.',                              eo:'She spent ten minutes kneading the bread dough by hand.'}},
   {word:'Coating',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'rivestimento / strato / ricoprire',      lit:null,               sy:['covering','layering','glazing'],                         ei:'Ricoprì il pollo di spezie prima di metterlo in forno.',                      eo:'She coating the chicken in spices before putting it in the oven.'}},
   {word:'Filthy',          dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'sporco / sudicio / osceno',              lit:null,               sy:['dirty','disgusting','foul'],                             ei:'Tornò a casa con le scarpe sudicie dopo la passeggiata nel fango.',           eo:'He came home with filthy shoes after the walk through the mud.'}},
-  {word:'Wield',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'maneggiare / esercitare (potere)',        lit:null,               sy:['brandish','handle','exercise'],                          ei:'Il generale esercitava un\'autorità assoluta sui suoi uomini.',               eo:'The general wielded absolute authority over his men.'}},
+  {word:'Wield',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'maneggiare / esercitare (potere)',        lit:null,               sy:['brandish','handle','exercise'],                          ei:"Il generale esercitava un'autorità assoluta sui suoi uomini.",                eo:'The general wielded absolute authority over his men.'}},
   {word:'Blunt',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'smusso / ottuso / diretto / brusco',     lit:null,               sy:['dull','direct','straightforward'],                       ei:'Fu diretto: disse esattamente quello che pensava senza giri di parole.',      eo:'He was blunt: he said exactly what he thought without beating around the bush.'}},
-  {word:'Seize',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'afferrare / impadronirsi / cogliere',    lit:null,               sy:['grab','grasp','capture'],                                ei:'Colse l\'occasione al volo e accettò l\'offerta di lavoro.',                  eo:'She seized the opportunity and accepted the job offer.'}},
+  {word:'Seize',           dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'afferrare / impadronirsi / cogliere',    lit:null,               sy:['grab','grasp','capture'],                                ei:"Colse l'occasione al volo e accettò l'offerta di lavoro.",                    eo:'She seized the opportunity and accepted the job offer.'}},
   {word:'Clumsy',          dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'goffo / maldestro',                      lit:null,               sy:['awkward','ungainly','ham-fisted'],                       ei:'Era così goffo che rovesciò il caffè sulla camicia nuova.',                   eo:'He was so clumsy he spilled coffee on his new shirt.'}},
   {word:'Thrill',          dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'brivido / emozione intensa',             lit:null,               sy:['excitement','rush','exhilaration'],                      ei:'Sentì un brivido di eccitazione quando salì sul palco per la prima volta.',   eo:'She felt a thrill of excitement when she stepped on stage for the first time.'}},
   {word:'Refined',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'word',   tr:'raffinato / elegante',                   lit:null,               sy:['sophisticated','polished','cultured'],                   ei:'Il suo gusto raffinato si notava in ogni dettaglio della casa.',              eo:'Her refined taste was evident in every detail of her home.'}},
-  {word:'Help myself',         dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrase', tr:'servirmi da solo / non riuscire a trattenermi',lit:null,sy:["serve myself","can't resist","treat myself"],           ei:'Non riuscivo a trattenermi dal mangiare un altro pezzo di torta.',                    eo:"I couldn't help myself from eating another piece of cake."}},
-  {word:'Left hand down a bit',dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrase', tr:'sterza leggermente a sinistra',                  lit:null,sy:['steer left','turn left','left a bit'],              ei:'Sterza un po\' a sinistra — stai andando verso il fosso!',                            eo:"Left hand down a bit — you're heading for the ditch!"}}
+  {word:'Help myself',     dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrase', tr:'servirmi da solo / non riuscire a trattenermi',lit:null,          sy:["serve myself","can't resist","treat myself"],           ei:'Non riuscivo a trattenermi dal mangiare un altro pezzo di torta.',           eo:"I couldn't help myself from eating another piece of cake."}},
+  {word:'Left hand down a bit',dir:'fwd',lc:'en',ln:'inglese',data:{type:'phrase',tr:'sterza leggermente a sinistra',       lit:null,               sy:['steer left','turn left','left a bit'],                   ei:"Sterza un po' a sinistra — stai andando verso il fosso!",                    eo:"Left hand down a bit — you're heading for the ditch!"}}
 ];
 
-var cards=[],iDir='fwd',qMode='mixed';
-var qQueue=[],qIdx=0,qOk=0,qDone=false;
+// ── STATE ──
+var LN={en:'inglese',es:'spagnolo',fr:'francese',de:'tedesco',pt:'portoghese',ja:'giapponese',zh:'cinese',ru:'russo',ar:'arabo'};
+var PI=1/1e6,PO=5/1e6;
+var TM={word:{c:'tw',l:'parola'},phrasal:{c:'tp',l:'phrasal verb'},idiom:{c:'ti',l:'idiom'},phrase:{c:'tf',l:'frase'}};
+function tm(t){return TM[t]||TM.word;}
 
-function init(){
-  cards=PRE.map(function(p,i){return{id:Date.now()+i,word:p.word,dir:p.dir,lc:p.lc,ln:p.ln,status:'ready',data:p.data,tok:null};});
-  chkKey();setDir('fwd');render();
+var cards=[], iDir='fwd', qMode='mixed';
+var qQueue=[], qIdx=0, qOk=0, qDone=false;
+
+// ── SYNC STATUS ──
+function syncStatus(state, msg) {
+  var dot = document.getElementById('sync-dot');
+  var lbl = document.getElementById('sync-lbl');
+  dot.className = 'sync-dot ' + state;
+  lbl.textContent = msg;
 }
 
-function showView(v){
+// ── LOAD FROM FIRESTORE ──
+async function loadFromFirestore() {
+  syncStatus('loading', 'Caricamento dal cloud...');
+  try {
+    var snap = await getDocs(collection(db, COLL));
+    if (snap.empty) {
+      // Prima volta — carica le card preloaded su Firestore
+      syncStatus('loading', 'Prima configurazione — caricamento dati iniziali...');
+      for (var i = 0; i < PRE.length; i++) {
+        var p = PRE[i];
+        await addDoc(collection(db, COLL), {
+          word: p.word, dir: p.dir, lc: p.lc, ln: p.ln, data: p.data,
+          createdAt: Date.now() + i
+        });
+      }
+      // ricarica
+      snap = await getDocs(collection(db, COLL));
+    }
+    cards = [];
+    snap.forEach(function(d) {
+      var c = d.data();
+      cards.push({id: d.id, word: c.word, dir: c.dir||'fwd', lc: c.lc||'en', ln: c.ln||'inglese', status: 'ready', data: c.data, tok: null, createdAt: c.createdAt||0});
+    });
+    cards.sort(function(a,b){return b.createdAt - a.createdAt;});
+    syncStatus('ok', 'Sincronizzato · ' + cards.length + ' card');
+    render();
+  } catch(e) {
+    syncStatus('err', 'Errore connessione: ' + e.message);
+  }
+}
+
+// ── SAVE CARD TO FIRESTORE ──
+async function saveCardToFirestore(card) {
+  try {
+    var ref = await addDoc(collection(db, COLL), {
+      word: card.word, dir: card.dir, lc: card.lc, ln: card.ln,
+      data: card.data, createdAt: card.createdAt
+    });
+    card.id = ref.id;
+    syncStatus('ok', 'Salvato · ' + cards.length + ' card');
+  } catch(e) {
+    syncStatus('err', 'Errore salvataggio: ' + e.message);
+  }
+}
+
+// ── DELETE FROM FIRESTORE ──
+async function deleteFromFirestore(id) {
+  try {
+    await deleteDoc(doc(db, COLL, id));
+    syncStatus('ok', 'Eliminato · ' + cards.length + ' card');
+  } catch(e) {
+    syncStatus('err', 'Errore eliminazione: ' + e.message);
+  }
+}
+
+// ── VIEWS ──
+function showView(v) {
   var vc=document.getElementById('view-cards');
   var vq=document.getElementById('view-quiz');
   var nc=document.getElementById('nb-cards');
@@ -295,8 +377,10 @@ function showView(v){
     nc.className='nb on';nq.className='nb';
   }
 }
+window.showView = showView;
 
-function setDir(d){
+// ── DIRECTION ──
+function setDir(d) {
   iDir=d;
   document.getElementById('db-fwd').className='db'+(d==='fwd'?' on':'');
   document.getElementById('db-rev').className='db'+(d==='rev'?' on':'');
@@ -306,37 +390,21 @@ function setDir(d){
   if(d==='fwd'){wi.placeholder='Parola in '+ln+'...';hi.textContent='Scrivi in '+ln+' → ottieni la traduzione italiana';}
   else{wi.placeholder='Parola o frase in italiano...';hi.textContent='Scrivi in italiano → ottieni la parola in '+ln;}
 }
+window.setDir = setDir;
 
-function chkKey(){
+// ── API KEY ──
+function chkKey() {
   var k=document.getElementById('akey').value.trim();
   var s=document.getElementById('ast');
   if(k.startsWith('sk-ant-')&&k.length>20){s.textContent='ok';s.className='ast ok';}
   else{s.textContent='non impostata';s.className='ast no';}
 }
+window.chkKey = chkKey;
 
-function saveFile(){
-  var exp=cards.filter(function(c){return c.status==='ready';}).map(function(c){return{word:c.word,dir:c.dir,lc:c.lc,ln:c.ln,data:c.data};});
-  var b=new Blob([JSON.stringify({v:2,cards:exp},null,2)],{type:'application/json'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='flashcards.json';a.click();URL.revokeObjectURL(a.href);
-  document.getElementById('slbl').textContent='Salvato: flashcards.json';
-}
-function loadFile(e){
-  var f=e.target.files[0];if(!f)return;
-  var r=new FileReader();
-  r.onload=function(ev){
-    try{
-      var p=JSON.parse(ev.target.result);
-      cards=(p.cards||p).map(function(c,i){return{id:Date.now()+i,word:c.word,dir:c.dir||'fwd',lc:c.lc||'en',ln:c.ln||'inglese',status:'ready',data:c.data,tok:null};});
-      document.getElementById('slbl').textContent='Caricato: '+f.name;
-      render();
-    }catch(err){alert('Errore: '+err.message);}
-  };
-  r.readAsText(f);e.target.value='';
-}
+// ── ADD CARD ──
+document.getElementById('win').addEventListener('keydown', function(e){if(e.key==='Enter')addCard();});
 
-document.getElementById('win').addEventListener('keydown',function(e){if(e.key==='Enter')addCard();});
-
-async function addCard(){
+async function addCard() {
   var wi=document.getElementById('win');
   var lc=document.getElementById('lang').value;
   var ak=document.getElementById('akey').value.trim();
@@ -345,8 +413,11 @@ async function addCard(){
   if(!ak||!ak.startsWith('sk-ant-')){document.getElementById('akey').focus();alert('Inserisci prima la tua API key Anthropic.');return;}
   wi.value='';
   var ln=LN[lc];
-  var card={id:Date.now(),word:entry,dir:iDir,lc:lc,ln:ln,status:'loading',data:null,err:'',tok:null};
-  cards.unshift(card);render();
+  var card={id:null,word:entry,dir:iDir,lc:lc,ln:ln,status:'loading',data:null,err:'',tok:null,createdAt:Date.now()};
+  cards.unshift(card);
+  render();
+  syncStatus('loading', 'Generazione in corso...');
+
   var sys,msg;
   if(iDir==='fwd'){
     sys='You are a bilingual dictionary (source→Italian). Respond ONLY with valid JSON, no markdown.\nSchema: {"type":"word|phrasal|idiom|phrase","tr":"Italian translation","lit":"literal if idiom else null","sy":["syn1 in '+ln+'","syn2 in '+ln+'","syn3 in '+ln+'"],"ei":"example in Italian","eo":"same in '+ln+'"}';
@@ -355,7 +426,7 @@ async function addCard(){
     sys='You are a bilingual dictionary (Italian→target). Respond ONLY with valid JSON, no markdown.\nSchema: {"type":"word|phrasal|idiom|phrase","tr":"best equivalent in '+ln+'","lit":"literal back-translation if idiom else null","sy":["syn1 in '+ln+'","syn2 in '+ln+'","syn3 in '+ln+'"],"ei":"example in Italian","eo":"same in '+ln+'"}';
     msg='Italian: "'+entry+'" → translate to '+ln;
   }
-  try{
+  try {
     var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':ak,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,system:sys,messages:[{role:'user',content:msg}]})});
     if(!res.ok){var er=await res.json();throw new Error(er&&er.error&&er.error.message?er.error.message:'HTTP '+res.status);}
     var d=await res.json();
@@ -364,22 +435,48 @@ async function addCard(){
     card.status='ready';
     card.data={type:p.type||'word',tr:p.tr||'',lit:p.lit||null,sy:Array.isArray(p.sy)?p.sy:[],ei:p.ei||'',eo:p.eo||''};
     card.tok=d.usage||null;
-  }catch(e){card.status='error';card.err=e.message;}
+    await saveCardToFirestore(card);
+  } catch(e) {
+    card.status='error';card.err=e.message;
+    syncStatus('err', 'Errore: '+e.message);
+  }
   render();
 }
+window.addCard = addCard;
 
-function tog(id){
+// ── CARD ACTIONS ──
+function tog(id) {
   var b=document.getElementById('cb-'+id);
   var t=document.getElementById('ct-'+id);
   if(!b)return;
   b.classList.toggle('open');
   if(t)t.textContent=b.classList.contains('open')?'▲':'▼';
 }
-function del(id){cards=cards.filter(function(c){return c.id!==id;});render();}
-function clearAll(){if(!confirm('Eliminare tutte le flashcard?'))return;cards=[];render();}
+window.tog = tog;
+
+async function del(id) {
+  cards=cards.filter(function(c){return c.id!==id;});
+  render();
+  await deleteFromFirestore(id);
+}
+window.del = del;
+
+async function clearAll() {
+  if(!confirm('Eliminare tutte le flashcard? Verranno rimosse anche dal cloud.'))return;
+  syncStatus('loading','Eliminazione in corso...');
+  for(var i=0;i<cards.length;i++){
+    if(cards[i].id) await deleteFromFirestore(cards[i].id);
+  }
+  cards=[];
+  render();
+  syncStatus('ok','Vocabolario svuotato');
+}
+window.clearAll = clearAll;
+
 function cost(t){if(!t)return null;return{c:t.input_tokens*PI+t.output_tokens*PO,i:t.input_tokens,o:t.output_tokens};}
 
-function render(){
+// ── RENDER ──
+function render() {
   var list=document.getElementById('clist');
   var cnt=document.getElementById('cnt');
   var bc=document.getElementById('bclr');
@@ -394,25 +491,27 @@ function render(){
   var tot=0;cards.forEach(function(c){var r=cost(c.tok);if(r)tot+=r.c;});
   tc.textContent=tot>0?'costo sessione: $'+tot.toFixed(5):'';
   list.innerHTML=cards.map(function(c){
-    if(c.status==='loading')return '<div class="fc"><div class="cf" style="cursor:default"><div style="display:flex;align-items:center;flex:1"><span class="cw">'+c.word+'</span></div><div class="ca"><div class="spin"></div><button class="del" onclick="del('+c.id+')">×</button></div></div><div class="lbar"><div class="spin"></div><span class="ltx">Generazione in corso...</span></div></div>';
-    if(c.status==='error')return '<div class="fc"><div class="cf" style="cursor:default"><div style="display:flex;align-items:center;flex:1"><span class="cw">'+c.word+'</span></div><div class="ca"><button class="del" onclick="del('+c.id+')">×</button></div></div><div class="err">Errore: '+(c.err||'elimina e riprova')+'</div></div>';
+    if(c.status==='loading')return '<div class="fc"><div class="cf" style="cursor:default"><div style="display:flex;align-items:center;flex:1"><span class="cw">'+c.word+'</span></div><div class="ca"><div class="spin"></div></div></div><div class="lbar"><div class="spin"></div><span class="ltx">Generazione in corso...</span></div></div>';
+    if(c.status==='error')return '<div class="fc"><div class="cf" style="cursor:default"><div style="display:flex;align-items:center;flex:1"><span class="cw">'+c.word+'</span></div><div class="ca"><button class="del" onclick="del(\''+c.id+'\')">×</button></div></div><div class="err">Errore: '+(c.err||'riprova')+'</div></div>';
     var d=c.data,t=tm(d.type);
     var dfwd=c.dir!=='rev';
     var syL=d.type==='idiom'?'Espressioni simili ('+c.ln+')':d.type==='phrasal'?'Phrasal simili ('+c.ln+')':'Sinonimi ('+c.ln+')';
     var sy=(d.sy||[]).map(function(s){return'<span class="syn">'+s+'</span>';}).join('');
     var ci=cost(c.tok);
     var tks=ci?ci.i+'↑ '+ci.o+'↓ · ~$'+ci.c.toFixed(5):'';
-    return '<div class="fc"><div class="cf" onclick="tog('+c.id+')"><div style="display:flex;align-items:center;min-width:0;flex:1;flex-wrap:wrap;gap:2px"><span class="cw">'+c.word+'</span><span class="tb '+t.c+'">'+t.l+'</span><span class="db2 '+(dfwd?'dfwd':'drev')+'">'+(dfwd?c.ln+'→IT':'IT→'+c.ln)+'</span></div><div class="ca"><span id="ct-'+c.id+'" class="ctog">▼</span><button class="del" onclick="event.stopPropagation();del('+c.id+')">×</button></div></div><div class="cb" id="cb-'+c.id+'"><div class="sl">'+(dfwd?'Traduzione italiana':'Parola in '+c.ln)+'</div><div class="tr2">'+d.tr+'</div>'+(d.lit?'<div class="lit">lett. "'+d.lit+'"</div>':'')+'<div class="sl">'+syL+'</div><div class="syns">'+sy+'</div><div class="sl">Esempio</div><div class="eit">'+d.ei+'</div><div class="eor">'+d.eo+'</div>'+(tks?'<div class="tki">'+tks+'</div>':'')+'</div></div>';
+    return '<div class="fc"><div class="cf" onclick="tog(\''+c.id+'\')"><div style="display:flex;align-items:center;min-width:0;flex:1;flex-wrap:wrap;gap:2px"><span class="cw">'+c.word+'</span><span class="tb '+t.c+'">'+t.l+'</span><span class="db2 '+(dfwd?'dfwd':'drev')+'">'+(dfwd?c.ln+'→IT':'IT→'+c.ln)+'</span></div><div class="ca"><span id="ct-'+c.id+'" class="ctog">▼</span><button class="del" onclick="event.stopPropagation();del(\''+c.id+'\')">×</button></div></div><div class="cb" id="cb-'+c.id+'"><div class="sl">'+(dfwd?'Traduzione italiana':'Parola in '+c.ln)+'</div><div class="tr2">'+d.tr+'</div>'+(d.lit?'<div class="lit">lett. "'+d.lit+'"</div>':'')+'<div class="sl">'+syL+'</div><div class="syns">'+sy+'</div><div class="sl">Esempio</div><div class="eit">'+d.ei+'</div><div class="eor">'+d.eo+'</div>'+(tks?'<div class="tki">'+tks+'</div>':'')+'</div></div>';
   }).join('');
 }
 
-function setQMode(m){
+// ── QUIZ ──
+function setQMode(m) {
   qMode=m;
   ['mixed','fwd','rev'].forEach(function(x){document.getElementById('qm-'+x).className='qmb'+(x===m?' on':'');});
   startQuiz();
 }
+window.setQMode = setQMode;
 
-function startQuiz(){
+function startQuiz() {
   var rdy=cards.filter(function(c){return c.status==='ready'&&c.data&&c.data.tr;});
   var qe=document.getElementById('qempty');
   var qm=document.getElementById('qmain');
@@ -428,8 +527,9 @@ function startQuiz(){
   qIdx=0;qOk=0;qDone=false;
   showQ();
 }
+window.startQuiz = startQuiz;
 
-function showQ(){
+function showQ() {
   var tot=qQueue.length;
   document.getElementById('qpf').style.width=(qIdx/tot*100)+'%';
   document.getElementById('qpl').textContent=qIdx+' / '+tot;
@@ -467,7 +567,7 @@ function norm(s){
   return (s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,'').replace(/\s+/g,' ').trim();
 }
 
-function checkAns(){
+function checkAns() {
   if(qDone)return;
   var item=qQueue[qIdx];
   var c=item.c,ask=item.ask;
@@ -495,10 +595,12 @@ function checkAns(){
   document.getElementById('bnxt').style.display='block';
   document.getElementById('bnxt').textContent=qIdx+1<qQueue.length?'Prossima →':'Risultati →';
 }
+window.checkAns = checkAns;
 
 function nextQ(){qIdx++;if(qIdx>=qQueue.length)showScore();else showQ();}
+window.nextQ = nextQ;
 
-function showScore(){
+function showScore() {
   document.getElementById('qmain').style.display='none';
   document.getElementById('qscore').style.display='block';
   document.getElementById('snum').textContent=qOk+'/'+qQueue.length;
@@ -507,7 +609,10 @@ function showScore(){
   document.getElementById('slbl2').textContent=pct+'% — '+msg;
 }
 
-init();
+// ── START ──
+setDir('fwd');
+loadFromFirestore();
+
 </script>
 </body>
 </html>
