@@ -35,6 +35,8 @@ header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b
 .sync-dot.loading{background:#e6a817;animation:pulse .8s ease-in-out infinite alternate}
 .sync-dot.err{background:var(--red)}
 @keyframes pulse{to{opacity:.3}}
+.bsm{font-family:'Courier New',monospace;font-size:11px;border:1px solid var(--b2);border-radius:var(--rs);padding:5px 10px;background:none;color:var(--tx2);cursor:pointer;white-space:nowrap}
+.bsm:hover{background:var(--surf2)}
 
 .api{background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:12px 14px;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .api label{font-size:11px;color:var(--tx2);font-family:'Courier New',monospace;white-space:nowrap}
@@ -156,6 +158,8 @@ header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b
     <div class="syncbar">
       <div class="sync-dot loading" id="sync-dot"></div>
       <span class="sync-lbl" id="sync-lbl">Connessione a Firebase...</span>
+      <button class="bsm" onclick="document.getElementById('filein').click()">⬆ Importa</button>
+      <input type="file" id="filein" accept=".json" style="display:none" onchange="importFromFile(event)">
     </div>
 
     <div class="api">
@@ -361,6 +365,39 @@ async function deleteFromFirestore(id) {
     syncStatus('err', 'Errore eliminazione: ' + e.message);
   }
 }
+
+// ── IMPORT (MERGE) FROM FILE ──
+async function importFromFile(e) {
+  var f = e.target.files[0]; if(!f) return;
+  var reader = new FileReader();
+  reader.onload = async function(ev) {
+    try {
+      var parsed = JSON.parse(ev.target.result);
+      var incoming = parsed.cards || parsed;
+      // mappa parole esistenti per confronto case-insensitive
+      var existing = {};
+      cards.forEach(function(c){ existing[c.word.toLowerCase().trim()] = true; });
+      var added = 0, skipped = 0;
+      syncStatus('loading', 'Importazione in corso...');
+      for(var i = 0; i < incoming.length; i++) {
+        var c = incoming[i];
+        var key = (c.word||'').toLowerCase().trim();
+        if(existing[key]) { skipped++; continue; }
+        var ref = await addDoc(collection(db, COLL), {
+          word: c.word, dir: c.dir||'fwd', lc: c.lc||'en', ln: c.ln||'inglese',
+          data: c.data, createdAt: Date.now() + i
+        });
+        cards.unshift({id: ref.id, word: c.word, dir: c.dir||'fwd', lc: c.lc||'en', ln: c.ln||'inglese', status: 'ready', data: c.data, tok: null, createdAt: Date.now()+i});
+        existing[key] = true;
+        added++;
+      }
+      syncStatus('ok', added + ' nuove card aggiunte · ' + skipped + ' duplicate saltate');
+      render();
+    } catch(err) { syncStatus('err', 'Errore importazione: ' + err.message); }
+  };
+  reader.readAsText(f); e.target.value='';
+}
+window.importFromFile = importFromFile;
 
 // ── VIEWS ──
 function showView(v) {
