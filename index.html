@@ -571,7 +571,7 @@ function renderCards(){
     var dfwd=c.dir!=='rev';
     var syL=d.type==='idiom'?'Espressioni simili ('+c.ln+')':d.type==='phrasal'?'Phrasal simili ('+c.ln+')':'Sinonimi ('+c.ln+')';
     var sy=(d.sy||[]).map(function(s){return'<span class="syn">'+s+'</span>';}).join('');
-    var hardBtn='<span class="diff-badge'+(c.hard?' hard':'')+'" onclick="toggleHard(\''+c.id+'\',event)" title="'+(c.hard?'Rimuovi da difficili':'Segna come difficile')+'">🔥</span>';
+    var hardBtn='<span class="diff-badge'+(c.hard?' hard':'')+'" onclick="toggleHard(\''+c.id+'\',event)" title="'+(c.hard?'Rimuovi da difficili':'Segna come difficile')+'">'+(c.hard?'★':'☆')+'</span>';
     var statsHtml='';
     if(c.stats&&(c.stats.ok||c.stats.no)){
       var tot2=c.stats.ok+c.stats.no;
@@ -592,7 +592,7 @@ function renderStats(){
   var pct=total>0?Math.round(totalOk/total*100):0;
   document.getElementById('stats-overview').innerHTML=
     '<div class="stat-card"><div class="stat-num">'+rdy.length+'</div><div class="stat-lbl">card totali</div></div>'+
-    '<div class="stat-card"><div class="stat-num">'+hard+'</div><div class="stat-lbl">🔥 difficili</div></div>'+
+    '<div class="stat-card"><div class="stat-num">'+hard+'</div><div class="stat-lbl">difficili</div></div>'+
     '<div class="stat-card"><div class="stat-num">'+total+'</div><div class="stat-lbl">risposte totali</div></div>'+
     '<div class="stat-card"><div class="stat-num">'+pct+'%</div><div class="stat-lbl">risposte corrette</div></div>';
 
@@ -610,7 +610,7 @@ function renderStats(){
   document.getElementById('stats-list').innerHTML=studied.map(function(c){
     var t2=(c.stats.ok||0)+(c.stats.no||0);
     var p=t2>0?Math.round((c.stats.ok||0)/t2*100):0;
-    return '<div class="stat-row"><span class="stat-word">'+c.word+'</span>'+(c.hard?'<span class="stat-hard">🔥</span>':'')+'<div class="stat-bar-wrap"><div class="stat-bar" style="width:'+p+'%"></div></div><span class="stat-pct">'+p+'%</span></div>';
+    return '<div class="stat-row"><span class="stat-word">'+c.word+'</span>'+(c.hard?'<span class="stat-hard">[!]</span>':'')+'<div class="stat-bar-wrap"><div class="stat-bar" style="width:'+p+'%"></div></div><span class="stat-pct">'+p+'%</span></div>';
   }).join('');
 }
 
@@ -633,7 +633,7 @@ function startQuiz(){
   var qs=document.getElementById('qscore');
   if(rdy.length===0){
     qe.style.display='block';qm.style.display='none';qs.style.display='none';
-    if(qMode==='hard')qe.textContent='Nessuna card segnata come difficile 🔥\nSegna qualche card dal Vocabolario.';
+    if(qMode==='hard')qe.textContent='Nessuna card segnata come difficile. Segna qualche card dal Vocabolario.';
     else qe.textContent='Nessuna flashcard disponibile.\nAggiungi qualche parola prima.';
     return;
   }
@@ -657,7 +657,7 @@ function showQ(){
   var c=item.c,ask=item.ask;
   var t=tm(c.data.type);
   var tb=document.getElementById('qtb');
-  tb.textContent=t.l+(c.hard?' 🔥':'');tb.className='tb '+t.c;
+  tb.textContent=t.l+(c.hard?' [!]':'');tb.className='tb '+t.c;
   if(ask==='fwd'){
     document.getElementById('qql').textContent='Come si dice in italiano?';
     document.getElementById('qqw').textContent=c.word;
