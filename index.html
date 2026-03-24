@@ -107,6 +107,9 @@ header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b
 .syn{background:var(--surf);border:1px solid var(--b2);border-radius:20px;padding:4px 11px;font-size:13px;color:var(--tx2)}
 .eit{font-size:14px;color:var(--tx2);line-height:1.65;border-left:2px solid var(--b2);padding-left:11px;font-style:italic;margin-bottom:7px}
 .eor{font-size:13px;color:var(--tx3);line-height:1.6;border-left:2px solid var(--b);padding-left:11px;font-style:italic}
+.furigana-block{margin-bottom:14px}
+.furigana-txt{font-size:16px;color:var(--tx);line-height:2;letter-spacing:.05em}
+.example-furi{font-size:12px;color:var(--tx3);line-height:1.8;border-left:2px solid var(--b);padding-left:11px;font-style:italic;margin-top:5px}
 
 /* card stats row */
 .card-stats{display:flex;gap:12px;margin-top:10px;font-size:11px;color:var(--tx3);font-family:'Courier New',monospace}
@@ -125,6 +128,10 @@ header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b
 .qmb{flex:1;font-family:'Courier New',monospace;font-size:11px;padding:8px 4px;border:none;background:none;color:var(--tx2);cursor:pointer;text-align:center;transition:all .15s}
 .qmb.on{background:var(--tx);color:var(--bg)}
 .qmb:hover:not(.on){background:var(--surf2)}
+.qlangbar{display:flex;align-items:center;gap:8px;margin-bottom:1.25rem;background:var(--surf);border:1px solid var(--b);border-radius:var(--r);padding:10px 14px}
+.qlang-lbl{font-size:11px;color:var(--tx2);font-family:'Courier New',monospace;white-space:nowrap}
+.qlangbar select{flex:1;font-family:'Georgia',serif;font-size:14px;border:1px solid var(--b2);border-radius:var(--rs);padding:6px 10px;background:var(--bg);color:var(--tx);outline:none;cursor:pointer}
+.qlangbar select:focus{border-color:var(--ac)}
 .qprog{display:flex;align-items:center;gap:10px;margin-bottom:1.25rem}
 .qpw{flex:1;height:4px;background:var(--surf2);border-radius:2px;overflow:hidden}
 .qpf{height:100%;background:var(--ac);border-radius:2px;transition:width .3s}
@@ -251,10 +258,25 @@ header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b
     <div class="qempty" id="qempty">Nessuna flashcard disponibile.<br>Aggiungi qualche parola prima.</div>
     <div id="qmain" style="display:none">
       <div class="qmbar">
-        <button class="qmb on" id="qm-mixed" onclick="setQMode('mixed')">🔀 Misto</button>
-        <button class="qmb" id="qm-fwd"   onclick="setQMode('fwd')">🌍→🇮🇹</button>
-        <button class="qmb" id="qm-rev"   onclick="setQMode('rev')">🇮🇹→🌍</button>
-        <button class="qmb" id="qm-hard"  onclick="setQMode('hard')">🔥 Difficili</button>
+        <button class="qmb on" id="qm-mixed" onclick="setQMode('mixed')">Misto</button>
+        <button class="qmb" id="qm-fwd"   onclick="setQMode('fwd')">Straniero→IT</button>
+        <button class="qmb" id="qm-rev"   onclick="setQMode('rev')">IT→Straniero</button>
+        <button class="qmb" id="qm-hard"  onclick="setQMode('hard')">Difficili</button>
+      </div>
+      <div class="qlangbar">
+        <span class="qlang-lbl">Lingua:</span>
+        <select id="qlang" onchange="startQuiz()">
+          <option value="all">Tutte</option>
+          <option value="en">Inglese</option>
+          <option value="es">Spagnolo</option>
+          <option value="fr">Francese</option>
+          <option value="de">Tedesco</option>
+          <option value="pt">Portoghese</option>
+          <option value="ja">Giapponese</option>
+          <option value="zh">Cinese</option>
+          <option value="ru">Russo</option>
+          <option value="ar">Arabo</option>
+        </select>
       </div>
       <div class="qprog">
         <div class="qpw"><div class="qpf" id="qpf" style="width:0%"></div></div>
@@ -494,20 +516,28 @@ async function addCard(){
   cards.unshift(card);renderCards();syncStatus('loading','Generazione in corso...');
   var sys,msg;
   if(iDir==='fwd'){
-    sys='You are a bilingual dictionary (source→Italian). Respond ONLY with valid JSON, no markdown.\nSchema: {"type":"word|phrasal|idiom|phrase","tr":"Italian translation","lit":"literal if idiom else null","sy":["syn1 in '+ln+'","syn2 in '+ln+'","syn3 in '+ln+'"],"ei":"example in Italian","eo":"same in '+ln+'"}';
+    if(lc==='ja'){
+      sys='You are a Japanese-Italian dictionary. Respond ONLY with valid JSON, no markdown.\nSchema: {"type":"word|phrasal|idiom|phrase","tr":"Italian translation","lit":"literal if idiom else null","furigana":"word with furigana in format kanji(reading) e.g. 食(た)べる","sy":["syn1 in Japanese with furigana","syn2 in Japanese with furigana","syn3 in Japanese with furigana"],"ei":"example in Italian","eo":"same in Japanese","eo_furi":"Japanese example with furigana annotations"}';
+    } else {
+      sys='You are a bilingual dictionary (source→Italian). Respond ONLY with valid JSON, no markdown.\nSchema: {"type":"word|phrasal|idiom|phrase","tr":"Italian translation","lit":"literal if idiom else null","sy":["syn1 in '+ln+'","syn2 in '+ln+'","syn3 in '+ln+'"],"ei":"example in Italian","eo":"same in '+ln+'"}';
+    }
     msg=ln+': "'+entry+'"';
   }else{
-    sys='You are a bilingual dictionary (Italian→target). Respond ONLY with valid JSON, no markdown.\nSchema: {"type":"word|phrasal|idiom|phrase","tr":"best equivalent in '+ln+'","lit":"literal back-translation if idiom else null","sy":["syn1 in '+ln+'","syn2 in '+ln+'","syn3 in '+ln+'"],"ei":"example in Italian","eo":"same in '+ln+'"}';
+    if(lc==='ja'){
+      sys='You are an Italian-Japanese dictionary. Respond ONLY with valid JSON, no markdown.\nSchema: {"type":"word|phrasal|idiom|phrase","tr":"best equivalent in Japanese","furigana":"translation with furigana in format kanji(reading)","lit":"literal back-translation if idiom else null","sy":["syn1 in Japanese with furigana","syn2 in Japanese with furigana","syn3 in Japanese with furigana"],"ei":"example in Italian","eo":"same in Japanese","eo_furi":"Japanese example with furigana annotations"}';
+    } else {
+      sys='You are a bilingual dictionary (Italian→target). Respond ONLY with valid JSON, no markdown.\nSchema: {"type":"word|phrasal|idiom|phrase","tr":"best equivalent in '+ln+'","lit":"literal back-translation if idiom else null","sy":["syn1 in '+ln+'","syn2 in '+ln+'","syn3 in '+ln+'"],"ei":"example in Italian","eo":"same in '+ln+'"}';
+    }
     msg='Italian: "'+entry+'" → translate to '+ln;
   }
   try{
-    var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':ak,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,system:sys,messages:[{role:'user',content:msg}]})});
+    var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':ak,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:lc==='ja'?500:350,system:sys,messages:[{role:'user',content:msg}]})});
     if(!res.ok){var er=await res.json();throw new Error(er&&er.error?er.error.message:'HTTP '+res.status);}
     var d=await res.json();
     var txt=(d.content&&d.content[0]?d.content[0].text:'').replace(/```json|```/g,'').trim();
     var p=JSON.parse(txt);
     card.status='ready';
-    card.data={type:p.type||'word',tr:p.tr||'',lit:p.lit||null,sy:Array.isArray(p.sy)?p.sy:[],ei:p.ei||'',eo:p.eo||''};
+    card.data={type:p.type||'word',tr:p.tr||'',lit:p.lit||null,sy:Array.isArray(p.sy)?p.sy:[],ei:p.ei||'',eo:p.eo||'',furigana:p.furigana||null,eo_furi:p.eo_furi||null};
     card.tok=d.usage||null;
     await saveCard(card);
   }catch(e){card.status='error';card.err=e.message;syncStatus('err','Errore: '+e.message);}
@@ -578,7 +608,11 @@ function renderCards(){
       var pct=Math.round(c.stats.ok/tot2*100);
       statsHtml='<div class="card-stats"><span class="cs-ok">✓ '+c.stats.ok+'</span><span class="cs-no">✗ '+c.stats.no+'</span><span>'+pct+'% corretto</span></div>';
     }
-    return '<div class="fc"><div class="cf" onclick="tog(\''+c.id+'\')"><div style="display:flex;align-items:center;min-width:0;flex:1;flex-wrap:wrap;gap:2px"><span class="cw">'+c.word+'</span><span class="tb '+t.c+'">'+t.l+'</span><span class="db2 '+(dfwd?'dfwd':'drev')+'">'+(dfwd?c.ln+'→IT':'IT→'+c.ln)+'</span>'+hardBtn+'</div><div class="ca"><span id="ct-'+c.id+'" class="ctog">▼</span><button class="del" onclick="event.stopPropagation();del(\''+c.id+'\')">×</button></div></div><div class="cb" id="cb-'+c.id+'"><div class="sl">'+(dfwd?'Traduzione italiana':'Parola in '+c.ln)+'</div><div class="tr2">'+d.tr+'</div>'+(d.lit?'<div class="lit">lett. "'+d.lit+'"</div>':'')+'<div class="sl">'+syL+'</div><div class="syns">'+sy+'</div><div class="sl">Esempio</div><div class="eit">'+d.ei+'</div><div class="eor">'+d.eo+'</div>'+statsHtml+'</div></div>';
+    var furiganaHtml=d.furigana?'<div class="furigana-block"><span class="sl">Furigana</span><div class="furigana-txt">'+d.furigana+'</div></div>':'';
+    var eoFuriHtml=d.eo_furi?'<div class="example-furi">'+d.eo_furi+'</div>':'';
+    var ci=c.tok?{c:c.tok.input_tokens*PI+c.tok.output_tokens*PO,i:c.tok.input_tokens,o:c.tok.output_tokens}:null;
+    var costHtml=ci?'<div class="tki">'+ci.i+'↑ '+ci.o+'↓ · ~$'+ci.c.toFixed(5)+'</div>':'';
+    return '<div class="fc"><div class="cf" onclick="tog(\''+c.id+'\')"><div style="display:flex;align-items:center;min-width:0;flex:1;flex-wrap:wrap;gap:2px"><span class="cw">'+c.word+'</span><span class="tb '+t.c+'">'+t.l+'</span><span class="db2 '+(dfwd?'dfwd':'drev')+'">'+(dfwd?c.ln+'→IT':'IT→'+c.ln)+'</span>'+hardBtn+'</div><div class="ca"><span id="ct-'+c.id+'" class="ctog">▼</span><button class="del" onclick="event.stopPropagation();del(\''+c.id+'\')">×</button></div></div><div class="cb" id="cb-'+c.id+'"><div class="sl">'+(dfwd?'Traduzione italiana':'Parola in '+c.ln)+'</div><div class="tr2">'+d.tr+'</div>'+(d.lit?'<div class="lit">lett. "'+d.lit+'"</div>':'')+furiganaHtml+'<div class="sl">'+syL+'</div><div class="syns">'+sy+'</div><div class="sl">Esempio</div><div class="eit">'+d.ei+'</div><div class="eor">'+d.eo+'</div>'+eoFuriHtml+statsHtml+costHtml+'</div></div>';
   }).join('');
 }
 window.renderCards=renderCards;
@@ -623,9 +657,11 @@ function setQMode(m){
 window.setQMode=setQMode;
 
 function startQuiz(){
+  var qlang=document.getElementById('qlang').value;
   var rdy=cards.filter(function(c){
     if(c.status!=='ready'||!c.data||!c.data.tr)return false;
-    if(qMode==='hard')return c.hard;
+    if(qMode==='hard'&&!c.hard)return false;
+    if(qlang!=='all'&&c.lc!==qlang)return false;
     return true;
   });
   var qe=document.getElementById('qempty');
