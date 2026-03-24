@@ -438,7 +438,7 @@ async function addCard() {
     msg='Italian: "'+entry+'" → translate to '+ln;
   }
   try {
-    var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':ak,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,system:sys,messages:[{role:'user',content:msg}]})});
+    var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':ak,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,system:sys,messages:[{role:'user',content:msg}]})});
     if(!res.ok){var er=await res.json();throw new Error(er&&er.error&&er.error.message?er.error.message:'HTTP '+res.status);}
     var d=await res.json();
     var txt=(d.content&&d.content[0]&&d.content[0].text?d.content[0].text:'').replace(/```json|```/g,'').trim();
