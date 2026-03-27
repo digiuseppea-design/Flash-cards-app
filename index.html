@@ -11,6 +11,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Flashcard">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <style>
@@ -221,6 +223,7 @@ header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b
       <div class="sync-dot loading" id="sync-dot"></div>
       <span class="sync-lbl" id="sync-lbl">Connessione a Firebase...</span>
       <button class="bsm" onclick="document.getElementById('filein').click()">⬆ Importa</button>
+      <button class="bsm" onclick="removeDuplicates()">Rimuovi duplicati</button>
       <input type="file" id="filein" accept=".json" style="display:none" onchange="importFromFile(event)">
     </div>
     <div class="api">
@@ -577,6 +580,29 @@ async function clearAll(){
   cards=[];renderCards();syncStatus('ok','Vocabolario svuotato');
 }
 window.clearAll=clearAll;
+
+async function removeDuplicates(){
+  if(!confirm('Rimuovere i duplicati? Verrà tenuta una sola copia per ogni parola.'))return;
+  syncStatus('loading','Ricerca duplicati...');
+  var seen={};
+  var toDelete=[];
+  // ordina per createdAt crescente — tiene la più vecchia, elimina le più recenti
+  var sorted=[].concat(cards).sort(function(a,b){return (a.createdAt||0)-(b.createdAt||0);});
+  sorted.forEach(function(c){
+    var key=c.word.toLowerCase().trim();
+    if(seen[key]){toDelete.push(c);}
+    else{seen[key]=true;}
+  });
+  if(toDelete.length===0){syncStatus('ok','Nessun duplicato trovato');return;}
+  for(var i=0;i<toDelete.length;i++){
+    var c=toDelete[i];
+    if(c.id)await deleteCard(c.id);
+    cards=cards.filter(function(x){return x.id!==c.id;});
+  }
+  syncStatus('ok','Rimossi '+toDelete.length+' duplicati · '+cards.length+' card rimaste');
+  renderCards();
+}
+window.removeDuplicates=removeDuplicates;
 
 function cost(t){if(!t)return null;return{c:t.input_tokens*PI+t.output_tokens*PO,i:t.input_tokens,o:t.output_tokens};}
 
