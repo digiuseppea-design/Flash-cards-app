@@ -423,7 +423,7 @@ function showQ(){
   document.getElementById('brev').disabled=false;
   document.getElementById('bskip').disabled=false;
   var mcOpts=document.getElementById('qmc-opts');
-  if(isMC){mcOpts.style.display='';buildMCOptions(item);}
+  if(isMC){mcOpts.style.display='flex';buildMCOptions(item);}
   else{mcOpts.style.display='none';mcOpts.innerHTML='';}
   qDone=false;
   // auto-pronuncia la parola straniera
