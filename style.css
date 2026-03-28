@@ -172,7 +172,18 @@ header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b
 .stat-pct{font-size:12px;color:var(--tx2);font-family:'Courier New',monospace;min-width:36px;text-align:right;flex-shrink:0}
 .stat-hard{font-size:11px;flex-shrink:0}
 
-@media(max-width:480px){
+
+/* ── Multiple Choice ── */
+#qmc-opts{display:none;flex-direction:column;gap:8px;margin-bottom:.75rem}
+.mc-opt{padding:11px 14px;border:1.5px solid var(--b2);border-radius:var(--rs);background:var(--surf);color:var(--tx);cursor:pointer;text-align:left;font-family:'Georgia',serif;font-size:15px;transition:border-color .15s,background .15s}
+.mc-opt:hover:not(:disabled){border-color:var(--ac);background:var(--ac-bg)}
+.mc-correct{border-color:var(--ok)!important;background:var(--ok-bg)!important;color:var(--ok)!important;font-weight:600}
+.mc-wrong{border-color:var(--red)!important;background:var(--red-bg)!important;color:var(--red)!important}
+.mc-opt:disabled{cursor:default}
+
+/* ── Speak button ── */
+#bspeak{background:none;border:none;font-size:1.2rem;cursor:pointer;opacity:.55;padding:2px 5px;line-height:1;vertical-align:middle;transition:opacity .15s}
+#bspeak:hover{opacity:1}
   body{padding:1rem .75rem 5rem}
   header{flex-direction:column;align-items:flex-start}
   .hl h1{font-size:18px}

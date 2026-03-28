@@ -57,7 +57,7 @@ var PI=1/1e6,PO=5/1e6;
 var TM={word:{c:'tw',l:'parola'},phrasal:{c:'tp',l:'phrasal verb'},idiom:{c:'ti',l:'idiom'},phrase:{c:'tf',l:'frase'}};
 function tm(t){return TM[t]||TM.word;}
 
-var cards=[], iDir='fwd', qMode='mixed';
+var cards=[], iDir='fwd', qMode='mixed', qInputMode='write';
 var qQueue=[], qIdx=0, qOk=0, qDone=false;
 
 // ── SYNC ──
@@ -351,8 +351,12 @@ function renderStats(){
 
 // ── QUIZ ──
 function setQMode(m){
-  qMode=m;
-  ['mixed','fwd','rev','hard'].forEach(function(x){document.getElementById('qm-'+x).className='qmb'+(x===m?' on':'');});
+  qInputMode=(m==='mc')?'mc':'write';
+  qMode=(m==='mc')?'mixed':m;
+  ['mixed','fwd','rev','hard','mc'].forEach(function(x){
+    var el=document.getElementById('qm-'+x);
+    if(el)el.className='qmb'+(x===m?' on':'');
+  });
   startQuiz();
 }
 window.setQMode=setQMode;
@@ -406,16 +410,25 @@ function showQ(){
     document.getElementById('qll').textContent='italiano';
     document.getElementById('qi').placeholder='Parola in '+c.ln+'...';
   }
+  var isMC=qInputMode==='mc';
   var qi=document.getElementById('qi');
   qi.value='';qi.className='qi';qi.disabled=false;
   document.getElementById('qfb').style.display='none';
   document.getElementById('qfb').className='qfb';
   document.getElementById('bnxt').style.display='none';
-  document.getElementById('bchk').style.display='';
+  // show/hide write vs MC elements
+  document.getElementById('qirow').style.display=isMC?'none':'';
+  document.getElementById('qwrite-actions').style.display=isMC?'none':'';
+  document.getElementById('bchk').style.display=isMC?'none':'';
   document.getElementById('brev').disabled=false;
   document.getElementById('bskip').disabled=false;
+  var mcOpts=document.getElementById('qmc-opts');
+  if(isMC){mcOpts.style.display='';buildMCOptions(item);}
+  else{mcOpts.style.display='none';mcOpts.innerHTML='';}
   qDone=false;
-  setTimeout(function(){qi.focus();},50);
+  // auto-pronuncia la parola straniera
+  if(ask==='fwd')speakWord();
+  if(!isMC)setTimeout(function(){qi.focus();},50);
 }
 
 document.getElementById('qi').addEventListener('keydown',function(e){
@@ -505,6 +518,85 @@ function showScore(){
   var msg=pct===100?'perfetto!':pct>=80?'ottimo risultato':pct>=60?'buon lavoro':pct>=40?"ancora un po' di ripasso":'ripassia ancora';
   document.getElementById('slbl2').textContent=pct+'% — '+msg;
 }
+
+// ── SPEECH ──
+function speakWord(){
+  var item=qQueue[qIdx];
+  if(!item)return;
+  var c=item.c,ask=item.ask;
+  var text=ask==='fwd'?c.word:(c.data&&c.data.tr?c.data.tr:c.word);
+  var lang=ask==='fwd'?c.lc:'it';
+  var lcMap={en:'en-US',es:'es-ES',fr:'fr-FR',de:'de-DE',pt:'pt-PT',ja:'ja-JP',zh:'zh-CN',ru:'ru-RU',ar:'ar-SA'};
+  var utter=new SpeechSynthesisUtterance(text);
+  utter.lang=lcMap[lang]||lang;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utter);
+}
+window.speakWord=speakWord;
+
+// ── MULTIPLE CHOICE ──
+function buildMCOptions(item){
+  var c=item.c,ask=item.ask;
+  var correct=ask==='fwd'?(c.data&&c.data.tr?c.data.tr:c.word):c.word;
+  // 3 distrattori da card della stessa lingua
+  var pool=cards.filter(function(x){
+    if(!x.data||!x.data.tr)return false;
+    if(x.id===c.id)return false;
+    if(x.lc!==c.lc)return false;
+    return true;
+  });
+  pool.sort(function(){return Math.random()-.5;});
+  var distractors=pool.slice(0,3).map(function(x){return ask==='fwd'?x.data.tr:x.word;});
+  // se non ci sono abbastanza card della stessa lingua, prendi da altre
+  if(distractors.length<3){
+    var extra=cards.filter(function(x){
+      if(!x.data||!x.data.tr)return false;
+      if(x.id===c.id)return false;
+      if(x.lc===c.lc)return false;
+      return true;
+    });
+    extra.sort(function(){return Math.random()-.5;});
+    extra.slice(0,3-distractors.length).forEach(function(x){distractors.push(ask==='fwd'?x.data.tr:x.word);});
+  }
+  var opts=[correct].concat(distractors).sort(function(){return Math.random()-.5;});
+  var container=document.getElementById('qmc-opts');
+  container.innerHTML='';
+  opts.forEach(function(opt){
+    var btn=document.createElement('button');
+    btn.className='mc-opt';
+    btn.textContent=opt;
+    btn.onclick=function(){checkMC(opt,correct,btn);};
+    container.appendChild(btn);
+  });
+}
+window.buildMCOptions=buildMCOptions;
+
+function checkMC(chosen,correct,btn){
+  if(qDone)return;
+  qDone=true;
+  var ok=norm(chosen)===norm(correct);
+  var btns=document.querySelectorAll('.mc-opt');
+  btns.forEach(function(b){
+    if(norm(b.textContent)===norm(correct))b.classList.add('mc-correct');
+    else if(b===btn&&!ok)b.classList.add('mc-wrong');
+    b.disabled=true;
+  });
+  recordStat(qQueue[qIdx].c,ok);
+  if(ok)qOk++;
+  var fb=document.getElementById('qfb');
+  fb.className='qfb '+(ok?'ok':'no');
+  document.getElementById('qft').textContent=ok?'Corretto!':'Non esatto';
+  var c=qQueue[qIdx].c,ask=qQueue[qIdx].ask;
+  if(ok){document.getElementById('qfd').textContent='"'+(ask==='fwd'?c.word:c.data.tr)+'" = "'+correct+'"';}
+  else{
+    var lit=c.data.lit?'<br><em>lett. "'+c.data.lit+'"</em>':'';
+    document.getElementById('qfd').innerHTML='Risposta corretta: <strong>'+correct+'</strong>'+lit+'<br><span style="color:var(--tx3);font-style:italic">'+c.data.ei+'</span>';
+  }
+  fb.style.display='block';
+  document.getElementById('bnxt').style.display='block';
+  document.getElementById('bnxt').textContent=qIdx+1<qQueue.length?'Prossima →':'Risultati →';
+}
+window.checkMC=checkMC;
 
 // ── START ──
 setDir('fwd');

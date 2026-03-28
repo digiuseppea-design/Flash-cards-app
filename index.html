@@ -88,6 +88,7 @@
         <button class="qmb" id="qm-fwd" onclick="setQMode('fwd')">Straniero→IT</button>
         <button class="qmb" id="qm-rev" onclick="setQMode('rev')">IT→Straniero</button>
         <button class="qmb" id="qm-hard" onclick="setQMode('hard')">Difficili</button>
+        <button class="qmb" id="qm-mc" onclick="setQMode('mc')">Scelta multipla</button>
       </div>
       <div class="qlangbar">
         <span class="qlang-lbl">Lingua:</span>
@@ -114,13 +115,15 @@
         <div class="qmeta">
           <span class="tb" id="qtb"></span>
           <span style="font-size:11px;color:var(--tx3);font-family:'Courier New',monospace" id="qll"></span>
+          <button id="bspeak" onclick="speakWord()" title="Pronuncia">🔊</button>
         </div>
       </div>
-      <div class="qirow">
+      <div id="qmc-opts"></div>
+      <div class="qirow" id="qirow">
         <input type="text" class="qi" id="qi" placeholder="Scrivi la traduzione..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         <button class="bchk" id="bchk" onclick="checkAns()">Controlla</button>
       </div>
-      <div class="qactions">
+      <div class="qactions" id="qwrite-actions">
         <button class="bact" id="brev" onclick="revealAns()">Mostra risposta</button>
         <button class="bact" id="bskip" onclick="skipQ()">Salta</button>
       </div>
