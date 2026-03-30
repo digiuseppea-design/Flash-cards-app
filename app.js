@@ -442,8 +442,28 @@ function showQ(){
   if(!isMC)setTimeout(function(){qi.focus();},50);
 }
 
-document.getElementById('qi').addEventListener('keydown',function(e){
-  if(e.key==='Enter'){if(!qDone)checkAns();else nextQ();}
+// keyboard navigation globale
+document.addEventListener('keydown',function(e){
+  var tag=document.activeElement?document.activeElement.tagName:'';
+  var inInput=(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT');
+  // Enter su input scrittura: controlla o avanza
+  if(e.key==='Enter'&&tag==='INPUT'){
+    if(!qDone)checkAns();else nextQ();
+    return;
+  }
+  // Enter / Space fuori da input: avanza se risposta data
+  if((e.key==='Enter'||e.key===' ')&&!inInput){
+    if(qDone){e.preventDefault();nextQ();}
+    return;
+  }
+  // 1-4 per scelta multipla
+  if(!inInput&&qType==='mc'&&!qDone){
+    var n=parseInt(e.key);
+    if(n>=1&&n<=4){
+      var opts=document.querySelectorAll('.mc-opt:not(:disabled)');
+      if(opts[n-1])opts[n-1].click();
+    }
+  }
 });
 
 function norm(s){return(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,'').replace(/\s+/g,' ').trim();}
@@ -454,6 +474,40 @@ async function recordStat(card,ok){
   if(ok)card.stats.ok++;else card.stats.no++;
   await updateCard(card.id,{stats:card.stats});
 }
+
+function showFeedback(ok,labelTxt,bodyHtml,card){
+  var fb=document.getElementById('qfb');
+  fb.className='qfb '+(ok?'ok':'no');
+  var starCls='qfb-hard-star'+(card.hard?' hard':'');
+  document.getElementById('qft').innerHTML=
+    '<span class="qft-txt">'+labelTxt+'</span>'+
+    '<button class="qfb-hard" onclick="toggleHardQuiz(\''+card.id+'\')" title="Segna difficile">'+
+      '<span class="'+starCls+'" id="qfb-star">'+( card.hard?'★':'☆')+'</span>'+
+      '<span style="font-size:10px">'+(card.hard?'difficile':'segna difficile')+'</span>'+
+    '</button>';
+  document.getElementById('qfd').innerHTML=bodyHtml;
+  fb.style.display='block';
+  document.getElementById('bchk').style.display='none';
+  document.getElementById('brev').disabled=true;
+  document.getElementById('bskip').disabled=true;
+  document.getElementById('bnxt').style.display='block';
+  document.getElementById('bnxt').textContent=qIdx+1<qQueue.length?'Prossima →':'Risultati →';
+  // hint tastiera
+  var hint=document.getElementById('kbd-hint');
+  if(hint)hint.style.display='block';
+}
+
+async function toggleHardQuiz(id){
+  var card=cards.find(function(c){return c.id===id;});
+  if(!card)return;
+  card.hard=!card.hard;
+  await updateCard(id,{hard:card.hard});
+  var star=document.getElementById('qfb-star');
+  if(star){star.textContent=card.hard?'★':'☆';star.className='qfb-hard-star'+(card.hard?' hard':'');}
+  var lbl=star?star.nextElementSibling:null;
+  if(lbl)lbl.textContent=card.hard?'difficile':'segna difficile';
+}
+window.toggleHardQuiz=toggleHardQuiz;
 
 function checkAns(){
   if(qDone)return;
@@ -469,20 +523,13 @@ function checkAns(){
   recordStat(c,ok);
   var qi=document.getElementById('qi');
   qi.className='qi '+(ok?'ok':'no');qi.disabled=true;
-  var fb=document.getElementById('qfb');
-  fb.className='qfb '+(ok?'ok':'no');
-  document.getElementById('qft').textContent=ok?'Corretto!':'Non esatto';
-  if(ok){document.getElementById('qfd').textContent='"'+c.word+'" = "'+correct+'"';}
+  var bodyHtml;
+  if(ok){bodyHtml='"'+c.word+'" = "'+correct+'"';}
   else{
     var lit=c.data.lit?'<br><em>lett. "'+c.data.lit+'"</em>':'';
-    document.getElementById('qfd').innerHTML='Risposta corretta: <strong>'+correct+'</strong>'+lit+'<br><span style="color:var(--tx3);font-style:italic">'+c.data.ei+'</span>';
+    bodyHtml='Risposta corretta: <strong>'+correct+'</strong>'+lit+'<br><span style="color:var(--tx3);font-style:italic">'+c.data.ei+'</span>';
   }
-  fb.style.display='block';
-  document.getElementById('bchk').style.display='none';
-  document.getElementById('brev').disabled=true;
-  document.getElementById('bskip').disabled=true;
-  document.getElementById('bnxt').style.display='block';
-  document.getElementById('bnxt').textContent=qIdx+1<qQueue.length?'Prossima →':'Risultati →';
+  showFeedback(ok,ok?'Corretto!':'Non esatto',bodyHtml,c);
 }
 window.checkAns=checkAns;
 
@@ -495,17 +542,9 @@ function revealAns(){
   recordStat(c,false);
   var qi=document.getElementById('qi');
   qi.className='qi no';qi.disabled=true;
-  var fb=document.getElementById('qfb');
-  fb.className='qfb no';
-  document.getElementById('qft').textContent='Risposta';
   var lit=c.data.lit?'<br><em>lett. "'+c.data.lit+'"</em>':'';
-  document.getElementById('qfd').innerHTML='<strong>'+correct+'</strong>'+lit+'<br><span style="color:var(--tx3);font-style:italic">'+c.data.ei+'</span>';
-  fb.style.display='block';
-  document.getElementById('bchk').style.display='none';
-  document.getElementById('brev').disabled=true;
-  document.getElementById('bskip').disabled=true;
-  document.getElementById('bnxt').style.display='block';
-  document.getElementById('bnxt').textContent=qIdx+1<qQueue.length?'Prossima →':'Risultati →';
+  var bodyHtml='<strong>'+correct+'</strong>'+lit+'<br><span style="color:var(--tx3);font-style:italic">'+c.data.ei+'</span>';
+  showFeedback(false,'Risposta',bodyHtml,c);
 }
 window.revealAns=revealAns;
 
@@ -609,20 +648,16 @@ function checkMC(chosen,correct,btn){
     else if(b===btn&&!ok)b.classList.add('mc-wrong');
     b.disabled=true;
   });
-  recordStat(qQueue[qIdx].c,ok);
   if(ok)qOk++;
-  var fb=document.getElementById('qfb');
-  fb.className='qfb '+(ok?'ok':'no');
-  document.getElementById('qft').textContent=ok?'Corretto!':'Non esatto';
   var c=qQueue[qIdx].c,ask=qQueue[qIdx].ask;
-  if(ok){document.getElementById('qfd').textContent='"'+(ask==='fwd'?c.word:c.data.tr)+'" = "'+correct+'"';}
+  recordStat(c,ok);
+  var bodyHtml;
+  if(ok){bodyHtml='"'+(ask==='fwd'?c.word:c.data.tr)+'" = "'+correct+'"';}
   else{
     var lit=c.data.lit?'<br><em>lett. "'+c.data.lit+'"</em>':'';
-    document.getElementById('qfd').innerHTML='Risposta corretta: <strong>'+correct+'</strong>'+lit+'<br><span style="color:var(--tx3);font-style:italic">'+c.data.ei+'</span>';
+    bodyHtml='Risposta corretta: <strong>'+correct+'</strong>'+lit+'<br><span style="color:var(--tx3);font-style:italic">'+c.data.ei+'</span>';
   }
-  fb.style.display='block';
-  document.getElementById('bnxt').style.display='block';
-  document.getElementById('bnxt').textContent=qIdx+1<qQueue.length?'Prossima →':'Risultati →';
+  showFeedback(ok,ok?'Corretto!':'Non esatto',bodyHtml,c);
 }
 window.checkMC=checkMC;
 
