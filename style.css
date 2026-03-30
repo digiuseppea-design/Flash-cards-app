@@ -174,6 +174,10 @@ header{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--b
 
 
 /* ── Multiple Choice ── */
+/* quiz section labels */
+.qsec-lbl{font-size:10px;font-family:'Courier New',monospace;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;margin-top:.9rem}
+.qsec-lbl:first-of-type{margin-top:0}
+
 #qmc-opts{display:none;flex-direction:column;gap:8px;margin-bottom:.75rem}
 .mc-opt{padding:11px 14px;border:1.5px solid var(--b2);border-radius:var(--rs);background:var(--surf);color:var(--tx);cursor:pointer;text-align:left;font-family:'Georgia',serif;font-size:15px;transition:border-color .15s,background .15s}
 .mc-opt:hover:not(:disabled){border-color:var(--ac);background:var(--ac-bg)}

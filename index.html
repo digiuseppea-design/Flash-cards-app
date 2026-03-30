@@ -81,15 +81,28 @@
 
   <!-- QUIZ -->
   <div id="view-quiz">
-    <div class="qempty" id="qempty">Nessuna flashcard disponibile.<br>Aggiungi qualche parola prima.</div>
+    <div class="qempty" id="qempty">Nessuna flashcard disponibile.<br>Aggiungi qualche parola prima.<br><button class="brst" style="margin-top:1rem" onclick="setQFilter('all');startQuiz()">&#8592; Torna al quiz</button></div>
     <div id="qmain" style="display:none">
+      <!-- Livello 1: direzione -->
+      <div class="qsec-lbl">Direzione</div>
       <div class="qmbar">
-        <button class="qmb on" id="qm-mixed" onclick="setQMode('mixed')">Misto</button>
-        <button class="qmb" id="qm-fwd" onclick="setQMode('fwd')">Straniero→IT</button>
-        <button class="qmb" id="qm-rev" onclick="setQMode('rev')">IT→Straniero</button>
-        <button class="qmb" id="qm-hard" onclick="setQMode('hard')">Difficili</button>
-        <button class="qmb" id="qm-mc" onclick="setQMode('mc')">Scelta multipla</button>
+        <button class="qmb on" id="qd-mixed" onclick="setQDir('mixed')">Misto</button>
+        <button class="qmb" id="qd-fwd" onclick="setQDir('fwd')">Straniero&#8594;IT</button>
+        <button class="qmb" id="qd-rev" onclick="setQDir('rev')">IT&#8594;Straniero</button>
       </div>
+      <!-- Livello 2: tipo quiz -->
+      <div class="qsec-lbl">Tipo di quiz</div>
+      <div class="qmbar">
+        <button class="qmb on" id="qt-write" onclick="setQType('write')">Scrittura</button>
+        <button class="qmb" id="qt-mc" onclick="setQType('mc')">Scelta multipla</button>
+      </div>
+      <!-- Livello 3: filtro card -->
+      <div class="qsec-lbl">Card</div>
+      <div class="qmbar">
+        <button class="qmb on" id="qf-all" onclick="setQFilter('all')">Tutte</button>
+        <button class="qmb" id="qf-hard" onclick="setQFilter('hard')">&#11088; Solo difficili</button>
+      </div>
+      <!-- Lingua -->
       <div class="qlangbar">
         <span class="qlang-lbl">Lingua:</span>
         <select id="qlang" onchange="startQuiz()">

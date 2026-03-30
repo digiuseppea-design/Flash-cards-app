@@ -57,7 +57,8 @@ var PI=1/1e6,PO=5/1e6;
 var TM={word:{c:'tw',l:'parola'},phrasal:{c:'tp',l:'phrasal verb'},idiom:{c:'ti',l:'idiom'},phrase:{c:'tf',l:'frase'}};
 function tm(t){return TM[t]||TM.word;}
 
-var cards=[], iDir='fwd', qMode='mixed', qInputMode='write';
+var cards=[], iDir='fwd';
+var qDir='mixed', qType='write', qFilter='all'; // 3 livelli quiz
 var qQueue=[], qIdx=0, qOk=0, qDone=false;
 
 // ── SYNC ──
@@ -350,22 +351,32 @@ function renderStats(){
 }
 
 // ── QUIZ ──
-function setQMode(m){
-  qInputMode=(m==='mc')?'mc':'write';
-  qMode=(m==='mc')?'mixed':m;
-  ['mixed','fwd','rev','hard','mc'].forEach(function(x){
-    var el=document.getElementById('qm-'+x);
-    if(el)el.className='qmb'+(x===m?' on':'');
-  });
+function setQDir(d){
+  qDir=d;
+  ['mixed','fwd','rev'].forEach(function(x){var el=document.getElementById('qd-'+x);if(el)el.className='qmb'+(x===d?' on':'');});
   startQuiz();
 }
-window.setQMode=setQMode;
+window.setQDir=setQDir;
+
+function setQType(t){
+  qType=t;
+  ['write','mc'].forEach(function(x){var el=document.getElementById('qt-'+x);if(el)el.className='qmb'+(x===t?' on':'');});
+  startQuiz();
+}
+window.setQType=setQType;
+
+function setQFilter(f){
+  qFilter=f;
+  ['all','hard'].forEach(function(x){var el=document.getElementById('qf-'+x);if(el)el.className='qmb'+(x===f?' on':'');});
+  startQuiz();
+}
+window.setQFilter=setQFilter;
 
 function startQuiz(){
   var qlang=document.getElementById('qlang').value;
   var rdy=cards.filter(function(c){
     if(c.status!=='ready'||!c.data||!c.data.tr)return false;
-    if(qMode==='hard'&&!c.hard)return false;
+    if(qFilter==='hard'&&!c.hard)return false;
     if(qlang!=='all'&&c.lc!==qlang)return false;
     return true;
   });
@@ -374,15 +385,15 @@ function startQuiz(){
   var qs=document.getElementById('qscore');
   if(rdy.length===0){
     qe.style.display='block';qm.style.display='none';qs.style.display='none';
-    if(qMode==='hard')qe.textContent='Nessuna card segnata come difficile. Segna qualche card dal Vocabolario.';
-    else qe.textContent='Nessuna flashcard disponibile.\nAggiungi qualche parola prima.';
+    if(qFilter==='hard')qe.innerHTML='Nessuna card segnata come difficile.<br>Segna qualche card con &#11088; dal Vocabolario.<br><button class="brst" style="margin-top:1rem" onclick="setQFilter(\'all\')">&#8592; Mostra tutte</button>';
+    else qe.innerHTML='Nessuna flashcard disponibile.<br>Aggiungi qualche parola prima.';
     return;
   }
   qe.style.display='none';qs.style.display='none';qm.style.display='block';
   var items=[];
   rdy.forEach(function(c){
-    if(qMode==='mixed'||qMode==='fwd'||qMode==='hard')items.push({c:c,ask:'fwd'});
-    if(qMode==='mixed'||qMode==='rev')items.push({c:c,ask:'rev'});
+    if(qDir==='mixed'||qDir==='fwd')items.push({c:c,ask:'fwd'});
+    if(qDir==='mixed'||qDir==='rev')items.push({c:c,ask:'rev'});
   });
   qQueue=items.sort(function(){return Math.random()-.5;});
   qIdx=0;qOk=0;qDone=false;
@@ -410,7 +421,7 @@ function showQ(){
     document.getElementById('qll').textContent='italiano';
     document.getElementById('qi').placeholder='Parola in '+c.ln+'...';
   }
-  var isMC=qInputMode==='mc';
+  var isMC=qType==='mc';
   var qi=document.getElementById('qi');
   qi.value='';qi.className='qi';qi.disabled=false;
   document.getElementById('qfb').style.display='none';
@@ -526,11 +537,28 @@ function speakWord(){
   var c=item.c,ask=item.ask;
   var text=ask==='fwd'?c.word:(c.data&&c.data.tr?c.data.tr:c.word);
   var lang=ask==='fwd'?c.lc:'it';
-  var lcMap={en:'en-US',es:'es-ES',fr:'fr-FR',de:'de-DE',pt:'pt-PT',ja:'ja-JP',zh:'zh-CN',ru:'ru-RU',ar:'ar-SA'};
-  var utter=new SpeechSynthesisUtterance(text);
-  utter.lang=lcMap[lang]||lang;
+  var lcMap={en:'en-US',es:'es-ES',fr:'fr-FR',de:'de-DE',pt:'pt-PT',ja:'ja-JP',zh:'zh-CN',ru:'ru-RU',ar:'ar-SA',it:'it-IT'};
+  var bcp=lcMap[lang]||lang;
   speechSynthesis.cancel();
-  speechSynthesis.speak(utter);
+  function doSpeak(voice){
+    var utter=new SpeechSynthesisUtterance(text);
+    utter.lang=bcp;
+    if(voice)utter.voice=voice;
+    speechSynthesis.speak(utter);
+  }
+  var voices=speechSynthesis.getVoices();
+  if(voices.length){
+    var match=voices.find(function(v){return v.lang===bcp;})||voices.find(function(v){return v.lang.startsWith(bcp.split('-')[0]);});
+    doSpeak(match||null);
+  }else{
+    speechSynthesis.addEventListener('voiceschanged',function onVC(){
+      speechSynthesis.removeEventListener('voiceschanged',onVC);
+      var vs=speechSynthesis.getVoices();
+      var m=vs.find(function(v){return v.lang===bcp;})||vs.find(function(v){return v.lang.startsWith(bcp.split('-')[0]);});
+      doSpeak(m||null);
+    });
+    doSpeak(null);
+  }
 }
 window.speakWord=speakWord;
 
